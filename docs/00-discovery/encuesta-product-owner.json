@@ -1,0 +1,85 @@
+{
+  "usuarios": {
+    "roles": [
+      "ADMINISTRADOR",
+      "SUPERVISOR",
+      "CAJERO"
+    ],
+    "login": "Usuario y contraseña",
+    "crear_usuarios": "Solo administrador",
+    "cambiar_password_otros": "Solo administrador",
+    "cajero_ve_reportes": false,
+    "supervisor_gestiona_productos": true,
+    "usuarios_se_desactivan": true
+  },
+  "caja": {
+    "apertura": "Por usuario/cajero",
+    "otro_cajero_puede_vender_misma_caja": true,
+    "ingresos_retiros": "Supervisor o administrador",
+    "cierre": "Supervisor o administrador",
+    "carrito_activo_al_cerrar": "Se descarta carrito",
+    "venta_digital": true,
+    "una_caja_abierta_simultanea": true
+  },
+  "ventas": {
+    "precio_modificado_manual": false,
+    "ventas_pendientes": false,
+    "venta_mixta": false,
+    "descuento_maximo": "Configurable",
+    "descuento_venta_sobre_subtotal_ya_descontado": true,
+    "ventas_no_editables": true
+  },
+  "anulaciones_devoluciones": {
+    "anulacion_mismo_dia": true,
+    "devolucion_parcial": false,
+    "devolucion_requiere_motivo": false,
+    "anulacion_requiere_motivo": false,
+    "quien_devuelve": "Supervisor o administrador",
+    "devolucion_devuelve_stock": true,
+    "devolucion_devuelve_dinero": true,
+    "anulacion_devuelve_stock": true
+  },
+  "inventario": {
+    "unidad_minima_pesables": "gramos/ml",
+    "producto_inactivo_conserva_historial": false,
+    "producto_inactivo_vendible_si_estaba_en_carrito": true,
+    "ajuste_stock_requiere_motivo": true,
+    "quien_ajusta_stock": "Supervisor o administrador",
+    "ingreso_mercaderia_proveedor_obligatorio": true,
+    "precio_historico_en_detalle_venta": true,
+    "auditoria_cambios_precio": false,
+    "stock_negativo": false
+  },
+  "reportes": {
+    "ventas_diarias": [
+      "total_general",
+      "por_metodo_pago",
+      "por_cajero"
+    ],
+    "ranking_productos": [
+      "cantidad_vendida",
+      "monto_vendido"
+    ],
+    "exportaciones": [
+      "CSV",
+      "Excel",
+      "PDF"
+    ],
+    "quien_exporta": "Todos"
+  },
+  "ux": {
+    "pantalla_completa": "Recomendada, no obligatoria",
+    "carrito_persistente_localStorage": true,
+    "confirmar_vaciar_carrito": true,
+    "sonido_error_scanner": true,
+    "accesos_rapidos_configurables": true
+  },
+  "fuera_de_alcance": [
+    "AFIP/ARCA",
+    "facturación fiscal",
+    "multi-sucursal",
+    "multi-tenant",
+    "sincronización entre cajas",
+    "impresora térmica MVP"
+  ]
+}

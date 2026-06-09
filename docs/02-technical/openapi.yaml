@@ -1,0 +1,133 @@
+openapi: 3.0.3
+info:
+  title: Kiosk Billing & Cash POS API
+  version: 1.0.0
+  description: API MVP para sistema POS de kioscos.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+paths:
+  /auth/login:
+    post:
+      summary: Login de usuario
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Token emitido
+  /auth/me:
+    get:
+      summary: Usuario autenticado
+      responses:
+        "200": { description: OK }
+  /cajas/actual:
+    get:
+      summary: Obtener caja abierta actual
+      responses:
+        "200": { description: OK }
+  /cajas/apertura:
+    post:
+      summary: Abrir caja
+      responses:
+        "201": { description: Caja abierta }
+  /cajas/cierre:
+    post:
+      summary: Cerrar caja
+      responses:
+        "200": { description: Caja cerrada }
+  /movimientos-caja:
+    post:
+      summary: Registrar ingreso o retiro
+      responses:
+        "201": { description: Movimiento creado }
+    get:
+      summary: Listar movimientos de caja
+      responses:
+        "200": { description: OK }
+  /productos:
+    get:
+      summary: Listar productos
+      responses:
+        "200": { description: OK }
+    post:
+      summary: Crear producto
+      responses:
+        "201": { description: Producto creado }
+  /productos/{id}:
+    get:
+      summary: Obtener producto
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+    put:
+      summary: Actualizar producto
+      responses:
+        "200": { description: OK }
+    delete:
+      summary: Eliminar producto si no tiene historial
+      responses:
+        "204": { description: Eliminado }
+  /productos/codigo/{codigo}:
+    get:
+      summary: Buscar producto por código de barras
+      parameters:
+        - in: path
+          name: codigo
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: OK }
+  /ventas:
+    post:
+      summary: Registrar venta
+      responses:
+        "201": { description: Venta registrada }
+    get:
+      summary: Listar ventas
+      responses:
+        "200": { description: OK }
+  /ventas/{id}/anular:
+    post:
+      summary: Anular venta
+      responses:
+        "200": { description: Venta anulada }
+  /ventas/{id}/devolver:
+    post:
+      summary: Devolver venta total
+      responses:
+        "200": { description: Venta devuelta }
+  /stock/ajuste:
+    post:
+      summary: Ajustar stock
+      responses:
+        "201": { description: Ajuste registrado }
+  /stock/ingreso:
+    post:
+      summary: Ingreso de mercadería
+      responses:
+        "201": { description: Ingreso registrado }
+  /reportes/ventas-diarias:
+    get:
+      summary: Reporte de ventas diarias
+      responses:
+        "200": { description: OK }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
