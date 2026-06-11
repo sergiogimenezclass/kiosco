@@ -601,6 +601,38 @@ function saveCart() {
     localStorage.setItem('kiosco_cart', JSON.stringify(state.cart));
 }
 
+// Sincronizar el carrito local con el estado fresco del catálogo
+function syncCartWithCatalog() {
+    if (!state.cart || state.cart.length === 0) return;
+    
+    let cartChanged = false;
+    state.cart = state.cart.map(item => {
+        const freshProduct = state.products.find(p => p.id === item.product.id);
+        if (freshProduct) {
+            let updatedItem = { ...item, product: freshProduct };
+            if (freshProduct.activo !== 1 || freshProduct.stock_actual <= 0) {
+                cartChanged = true;
+                return null;
+            }
+            if (item.cantidad > freshProduct.stock_actual) {
+                updatedItem.cantidad = freshProduct.stock_actual;
+                cartChanged = true;
+                showToast(`Stock ajustado: ${freshProduct.nombre} limitado a ${freshProduct.stock_actual} unidades`, 'warning');
+            }
+            if (item.product.precio_venta_centavos !== freshProduct.precio_venta_centavos) {
+                cartChanged = true;
+            }
+            return updatedItem;
+        }
+        cartChanged = true;
+        return null;
+    }).filter(item => item !== null);
+    
+    if (cartChanged) {
+        saveCart();
+    }
+}
+
 function calculateCartTotals() {
     let subtotal = 0;
     let descuento = 0; // Se pueden integrar descuentos en Fases posteriores
@@ -910,6 +942,9 @@ async function initializePOS() {
     
     // 3. Traer configuraciones de accesos rápidos
     await fetchQuickAccesses();
+    
+    // Sincronizar carrito local con los datos más recientes del catálogo
+    syncCartWithCatalog();
     
     // 4. Renderizar carrito inicial guardado
     renderCart();
