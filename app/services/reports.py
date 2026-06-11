@@ -111,7 +111,7 @@ class ReportsService:
             writer.writerow(["Metrica", "Valor"])
             writer.writerow(["Total General Facturado", fmt_mon(data["total_general_centavos"])])
             writer.writerow(["Cantidad de Ventas", data["cantidad_ventas"]])
-            writer.writerow(["Descuentos Aplicados", fmt_mon(data["descuentos_applied_centavos"] if "descuentos_applied_centavos" in data else data.get("descuentos_aplicados_centavos", 0))])
+            writer.writerow(["Descuentos Aplicados", fmt_mon(data.get("descuentos_aplicados_centavos", 0))])
             writer.writerow(["Cantidad de Anulaciones", data["cantidad_anulaciones"]])
             writer.writerow(["Total Anulado", fmt_mon(data["total_anulado_centavos"])])
             writer.writerow(["Cantidad de Devoluciones", data["cantidad_devoluciones"]])
@@ -322,7 +322,7 @@ class ReportsService:
                 item["producto_id"][:8],
                 item["nombre_producto"],
                 item["cantidad_vendida"],
-                fmt_mon(item["monto_sold_centavos"] if "monto_sold_centavos" in item else item.get("monto_vendido_centavos", 0))
+                fmt_mon(item.get("monto_vendido_centavos", 0))
             ])
 
         if fmt == "csv":
