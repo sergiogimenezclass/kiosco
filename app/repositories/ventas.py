@@ -213,3 +213,163 @@ class VentasRepository:
         )
         venta["detalles"] = [dict(r) for r in cursor.fetchall()]
         return venta
+
+    @staticmethod
+    def create_anulacion(
+        conn: sqlite3.Connection,
+        id_anulacion: str,
+        venta_id: str,
+        usuario_id: str,
+        motivo: Optional[str],
+        fecha: str
+    ) -> Dict[str, Any]:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO anulaciones (id, venta_id, usuario_id, motivo, fecha)
+                VALUES (?, ?, ?, ?, ?);
+                """,
+                (id_anulacion, venta_id, usuario_id, motivo, fecha)
+            )
+            return {
+                "id": id_anulacion,
+                "venta_id": venta_id,
+                "usuario_id": usuario_id,
+                "motivo": motivo,
+                "fecha": fecha
+            }
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al registrar la cabecera de anulación: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def create_devolucion(
+        conn: sqlite3.Connection,
+        id_devolucion: str,
+        venta_id: str,
+        usuario_id: str,
+        monto_devuelto_centavos: int,
+        motivo: Optional[str],
+        fecha: str
+    ) -> Dict[str, Any]:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO devoluciones (id, venta_id, usuario_id, monto_devuelto_centavos, motivo, fecha)
+                VALUES (?, ?, ?, ?, ?, ?);
+                """,
+                (id_devolucion, venta_id, usuario_id, monto_devuelto_centavos, motivo, fecha)
+            )
+            return {
+                "id": id_devolucion,
+                "venta_id": venta_id,
+                "usuario_id": usuario_id,
+                "monto_devuelto_centavos": monto_devuelto_centavos,
+                "motivo": motivo,
+                "fecha": fecha
+            }
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al registrar la cabecera de devolución: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def update_venta_estado(
+        conn: sqlite3.Connection,
+        venta_id: str,
+        nuevo_estado: str
+    ) -> None:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE ventas SET estado = ? WHERE id = ?;",
+                (nuevo_estado, venta_id)
+            )
+            if cursor.rowcount == 0:
+                raise KioskException(
+                    code="SALE_NOT_FOUND",
+                    message="La venta no existe o no se pudo actualizar",
+                    status_code=404
+                )
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al actualizar el estado de la venta: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def revertir_stock_producto(
+        conn: sqlite3.Connection,
+        producto_id: str,
+        cantidad: int
+    ) -> None:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE productos SET stock_actual = stock_actual + ?, updated_at = ? WHERE id = ?;",
+                (cantidad, datetime.datetime.now(datetime.timezone.utc).isoformat(), producto_id)
+            )
+            if cursor.rowcount == 0:
+                raise KioskException(
+                    code="PRODUCT_NOT_FOUND",
+                    message="El producto no existe o no se pudo actualizar",
+                    status_code=404
+                )
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al revertir el stock: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def registrar_movimiento_stock_reversion(
+        conn: sqlite3.Connection,
+        prod_id: str,
+        user_id: str,
+        tipo_mov: str,
+        cantidad: int,
+        stock_ant: int,
+        stock_nue: int,
+        ref_id: str,
+        fecha: str,
+        motivo: Optional[str]
+    ) -> None:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO movimientos_stock (
+                    id, producto_id, usuario_id, tipo, cantidad, stock_anterior, stock_nuevo,
+                    referencia_tipo, referencia_id, motivo, fecha
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    uuid.uuid4().hex,
+                    prod_id,
+                    user_id,
+                    tipo_mov,
+                    cantidad,
+                    stock_ant,
+                    stock_nue,
+                    tipo_mov,
+                    ref_id,
+                    motivo or f"{tipo_mov.capitalize()} de venta",
+                    fecha
+                )
+            )
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al registrar movimiento de stock de reversión: {str(e)}",
+                status_code=500
+            )
+
