@@ -3,7 +3,7 @@ import uuid
 import datetime
 from typing import Dict, Any
 from app.core.errors import KioskException
-from app.schemas.ventas import VentaCreate, VentaResponse
+from app.schemas.ventas import VentaCreate, VentaResponse, AnulacionCreate, DevolucionCreate
 from app.repositories.ventas import VentasRepository
 from app.repositories.caja import CajaRepository
 from app.repositories.catalog import ProductoRepository
@@ -182,4 +182,167 @@ class VentasService:
             # Dado que get_db de FastAPI realiza commits/rollbacks automáticos,
             # cualquier excepción lanzada aquí propagará el error y gatillará el rollback automático
             # en el context manager get_db_conn() de la base de datos.
+            raise e
+
+    @staticmethod
+    def anular_venta(db: sqlite3.Connection, usuario_id: str, venta_id: str, anulacion_in: AnulacionCreate) -> Dict[str, Any]:
+        # 1. Recuperar la venta
+        venta = VentasRepository.get_venta_by_id(db, venta_id)
+        if not venta:
+            raise KioskException(
+                code="SALE_NOT_FOUND",
+                message="La venta no existe",
+                status_code=404
+            )
+        
+        # Validar estado
+        if venta["estado"] != "COMPLETADA":
+            raise KioskException(
+                code="INVALID_SALE_STATE",
+                message=f"No se puede anular una venta con estado {venta['estado']}",
+                status_code=400
+            )
+            
+        # Validar fecha (mismo día calendario UTC)
+        try:
+            fecha_venta = datetime.datetime.fromisoformat(venta["fecha"])
+        except ValueError:
+            raise KioskException(
+                code="INVALID_SALE_DATE",
+                message="La fecha de la venta no tiene un formato válido",
+                status_code=500
+            )
+            
+        if fecha_venta.tzinfo is None:
+            fecha_venta = fecha_venta.replace(tzinfo=datetime.timezone.utc)
+            
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        if fecha_venta.astimezone(datetime.timezone.utc).date() != current_time.date():
+            raise KioskException(
+                code="SALE_NOT_SAME_DAY",
+                message="Solo se pueden anular ventas realizadas el mismo día",
+                status_code=400
+            )
+            
+        id_anulacion = uuid.uuid4().hex
+        fecha_utc = current_time.isoformat()
+        
+        try:
+            # Registrar anulación
+            anulacion = VentasRepository.create_anulacion(
+                db,
+                id_anulacion=id_anulacion,
+                venta_id=venta_id,
+                usuario_id=usuario_id,
+                motivo=anulacion_in.motivo,
+                fecha=fecha_utc
+            )
+            
+            # Cambiar estado de la venta
+            VentasRepository.update_venta_estado(db, venta_id, "ANULADA")
+            
+            # Revertir stock de cada ítem
+            for item in venta["detalles"]:
+                prod = ProductoRepository.get_by_id(db, item["producto_id"])
+                if not prod:
+                    raise KioskException(
+                        code="PRODUCT_NOT_FOUND",
+                        message=f"El producto con ID '{item['producto_id']}' no existe en el catálogo",
+                        status_code=404
+                    )
+                
+                stock_anterior = prod["stock_actual"]
+                cantidad_a_revertir = item["cantidad"]
+                stock_nuevo = stock_anterior + cantidad_a_revertir
+                
+                VentasRepository.revertir_stock_producto(db, item["producto_id"], cantidad_a_revertir)
+                
+                VentasRepository.registrar_movimiento_stock_reversion(
+                    db,
+                    prod_id=item["producto_id"],
+                    user_id=usuario_id,
+                    tipo_mov="ANULACION",
+                    cantidad=cantidad_a_revertir,
+                    stock_ant=stock_anterior,
+                    stock_nue=stock_nuevo,
+                    ref_id=id_anulacion,
+                    fecha=fecha_utc,
+                    motivo=anulacion_in.motivo
+                )
+                
+            return anulacion
+            
+        except Exception as e:
+            raise e
+
+    @staticmethod
+    def devolver_venta(db: sqlite3.Connection, usuario_id: str, venta_id: str, devolucion_in: DevolucionCreate) -> Dict[str, Any]:
+        # 1. Recuperar la venta
+        venta = VentasRepository.get_venta_by_id(db, venta_id)
+        if not venta:
+            raise KioskException(
+                code="SALE_NOT_FOUND",
+                message="La venta no existe",
+                status_code=404
+            )
+        
+        # Validar estado
+        if venta["estado"] != "COMPLETADA":
+            raise KioskException(
+                code="INVALID_SALE_STATE",
+                message=f"No se puede devolver una venta con estado {venta['estado']}",
+                status_code=400
+            )
+            
+        id_devolucion = uuid.uuid4().hex
+        fecha_utc = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        monto_devuelto = venta["total_centavos"]
+        
+        try:
+            # Registrar devolución
+            devolucion = VentasRepository.create_devolucion(
+                db,
+                id_devolucion=id_devolucion,
+                venta_id=venta_id,
+                usuario_id=usuario_id,
+                monto_devuelto_centavos=monto_devuelto,
+                motivo=devolucion_in.motivo,
+                fecha=fecha_utc
+            )
+            
+            # Cambiar estado de la venta
+            VentasRepository.update_venta_estado(db, venta_id, "DEVUELTA")
+            
+            # Revertir stock de cada ítem
+            for item in venta["detalles"]:
+                prod = ProductoRepository.get_by_id(db, item["producto_id"])
+                if not prod:
+                    raise KioskException(
+                        code="PRODUCT_NOT_FOUND",
+                        message=f"El producto con ID '{item['producto_id']}' no existe en el catálogo",
+                        status_code=404
+                    )
+                
+                stock_anterior = prod["stock_actual"]
+                cantidad_a_revertir = item["cantidad"]
+                stock_nuevo = stock_anterior + cantidad_a_revertir
+                
+                VentasRepository.revertir_stock_producto(db, item["producto_id"], cantidad_a_revertir)
+                
+                VentasRepository.registrar_movimiento_stock_reversion(
+                    db,
+                    prod_id=item["producto_id"],
+                    user_id=usuario_id,
+                    tipo_mov="DEVOLUCION",
+                    cantidad=cantidad_a_revertir,
+                    stock_ant=stock_anterior,
+                    stock_nue=stock_nuevo,
+                    ref_id=id_devolucion,
+                    fecha=fecha_utc,
+                    motivo=devolucion_in.motivo
+                )
+                
+            return devolucion
+            
+        except Exception as e:
             raise e
