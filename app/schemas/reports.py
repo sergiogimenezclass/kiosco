@@ -46,3 +46,12 @@ class ProductoRankingItem(BaseModel):
     nombre_producto: str
     cantidad_vendida: int
     monto_vendido_centavos: int
+
+class StockBajoReportItem(BaseModel):
+    producto_id: str
+    nombre_producto: str
+    stock_actual: int
+    stock_minimo: int
+    categoria_nombre: str
+    unidad_medida: str
+
