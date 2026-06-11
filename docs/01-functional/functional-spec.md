@@ -1,351 +1,177 @@
-# functional-spec.md
-
-# Especificación Funcional - Kiosk Billing & Cash POS
-
-## 1. Visión General
-
-Kiosk Billing & Cash POS es un sistema de punto de venta para kioscos, diseñado para operar de forma local o en VPS dedicado bajo modalidad Single-Tenant. El objetivo principal es permitir una operación rápida de caja, con control estricto de inventario, trazabilidad de ventas y cierre de caja confiable.
-
-El sistema prioriza velocidad, bajo costo operativo, simplicidad técnica y consistencia de datos.
-
-## 2. Alcance del MVP
-
-### Incluido
-
-- Login con usuario y contraseña.
-- Roles: Administrador, Supervisor y Cajero.
-- Apertura de caja.
-- Cierre de caja ciego.
-- Ingresos y retiros de caja.
-- Venta por código de barras.
-- Venta por búsqueda textual.
-- Venta por accesos rápidos.
-- Cobro en efectivo.
-- Cobro digital.
-- Descuentos por ítem y por venta.
-- Anulación total de venta.
-- Devolución total de venta.
-- Gestión de productos.
-- Gestión de categorías.
-- Gestión de marcas.
-- Gestión de proveedores.
-- Productos unitarios.
-- Productos pesables.
-- Múltiples códigos de barras por producto.
-- Stock sin negativos.
-- Ingreso de mercadería.
-- Ajustes de stock.
-- Historial de movimientos de stock.
-- Reportes de ventas, caja, stock bajo y ranking de productos.
-- Exportación CSV, Excel y PDF.
-- Carrito persistente en localStorage.
-
-### Excluido
-
-- AFIP/ARCA.
-- Facturación fiscal.
-- Multi-sucursal.
-- Multi-tenant.
-- Sincronización entre cajas.
-- Venta mixta efectivo + digital.
-- Ventas pendientes.
-- Edición de ventas guardadas.
-- Devoluciones parciales.
-- Impresora térmica en MVP.
-- Modificación manual de precio en venta.
-
-## 3. Roles y Permisos
-
-### Administrador
-
-Puede:
-- Crear usuarios.
-- Cambiar contraseñas de otros usuarios.
-- Gestionar productos, categorías, marcas y proveedores.
-- Abrir caja si corresponde.
-- Realizar ventas.
-- Registrar ingresos y retiros de caja.
-- Cerrar caja.
-- Reabrir caja.
-- Aplicar descuentos.
-- Anular ventas.
-- Realizar devoluciones.
-- Ajustar stock.
-- Ver todos los reportes.
-- Exportar reportes.
-
-### Supervisor
-
-Puede:
-- Gestionar productos, categorías, marcas y proveedores.
-- Realizar ventas.
-- Registrar ingresos y retiros de caja.
-- Cerrar caja.
-- Aplicar descuentos.
-- Anular ventas.
-- Realizar devoluciones.
-- Ajustar stock.
-- Ver reportes operativos.
-- Exportar reportes disponibles.
-
-No puede:
-- Crear usuarios.
-- Cambiar contraseñas de otros usuarios.
-
-### Cajero
-
-Puede:
-- Iniciar sesión.
-- Abrir caja.
-- Realizar ventas.
-- Cobrar en efectivo o digital.
-- Usar scanner.
-- Usar accesos rápidos.
-- Ver el carrito.
-- Vaciar carrito con confirmación.
-
-No puede:
-- Ver reportes.
-- Crear usuarios.
-- Cambiar contraseñas de otros usuarios.
-- Registrar ingresos/retiros.
-- Cerrar caja.
-- Anular ventas.
-- Realizar devoluciones.
-- Aplicar descuentos.
-- Ajustar stock.
-
-## 4. Reglas de Negocio
-
-### RB-01: Caja única abierta
-
-Solo puede existir una caja en estado ABIERTA en toda la instancia.
-
-### RB-02: Caja abierta por usuario
-
-La caja se abre asociada a un usuario, pero otros usuarios pueden vender usando esa caja. Cada venta registra el usuario que la realizó.
-
-### RB-03: Cierre por rol superior
-
-Solo Supervisor o Administrador pueden cerrar caja.
-
-### RB-04: Carrito activo al cerrar caja
-
-Si existe carrito activo al cerrar caja, se descarta.
-
-### RB-05: Ventas no editables
-
-Una venta guardada nunca se modifica. Para corregir se usa anulación o devolución.
-
-### RB-06: Stock no negativo
-
-No se puede confirmar una venta, anulación, devolución o ajuste que deje stock negativo.
-
-### RB-07: Precio histórico
-
-Cada detalle de venta almacena el precio unitario al momento de la venta.
-
-### RB-08: Productos pesables
-
-Los productos pesables se guardan internamente en unidad mínima:
-- gramos para peso;
-- mililitros para volumen.
-
-Ejemplo: 1.5 kg se almacena como 1500 gramos.
-
-### RB-09: Descuentos
-
-Los descuentos pueden ser:
-- por producto;
-- por venta completa.
-
-Requieren Supervisor o Administrador.
-
-El descuento por venta se aplica luego de los descuentos por ítem.
-
-El máximo descuento permitido es configurable.
-
-### RB-10: Anulaciones
-
-La anulación:
-- solo puede realizarse el mismo día;
-- es total;
-- devuelve stock;
-- no requiere motivo obligatorio;
-- solo la realiza Supervisor o Administrador.
-
-### RB-11: Devoluciones
-
-La devolución:
-- es total;
-- devuelve stock;
-- devuelve dinero;
-- no requiere motivo obligatorio;
-- solo la realiza Supervisor o Administrador.
-
-### RB-12: Ingresos y retiros
-
-Todo ingreso o retiro de caja:
-- requiere motivo obligatorio;
-- solo lo realiza Supervisor o Administrador;
-- queda auditado.
-
-### RB-13: Ingreso de mercadería
-
-Todo ingreso de mercadería requiere proveedor obligatorio.
-
-### RB-14: Accesos rápidos
-
-Los accesos rápidos se configuran desde administración.
-
-## 5. Casos de Uso
-
-### CU-01: Login
-
-1. El usuario ingresa username y password.
-2. El backend valida credenciales.
-3. Si son válidas, se emite token/sesión.
-4. El frontend redirige según rol.
-5. Si son inválidas, se muestra error.
-
-### CU-02: Apertura de caja
-
-1. Cajero ingresa monto inicial.
-2. Sistema verifica que no exista caja abierta.
-3. Sistema crea caja ABIERTA.
-4. Se habilita pantalla POS.
-
-### CU-03: Venta por scanner
-
-1. El cajero escanea producto.
-2. Frontend detecta ráfaga de teclado.
-3. Busca código de barras.
-4. Si existe y hay stock, agrega producto al carrito.
-5. Si no existe, muestra error y sonido.
-6. Si no hay stock, bloquea agregado.
-
-### CU-04: Venta por búsqueda
-
-1. Cajero escribe nombre/descripción.
-2. Sistema filtra productos en menos de 100 ms.
-3. Cajero selecciona producto.
-4. Producto se agrega al carrito si hay stock.
-
-### CU-05: Venta por acceso rápido
-
-1. Cajero selecciona botón de acceso rápido.
-2. Producto se agrega al carrito.
-3. Se recalcula total.
-
-### CU-06: Cobro efectivo
-
-1. Cajero abre modal de pago.
-2. Selecciona efectivo.
-3. Ingresa monto recibido.
-4. Sistema calcula vuelto.
-5. Si monto recibido >= total, permite confirmar.
-6. Backend registra venta y descuenta stock transaccionalmente.
-
-### CU-07: Cobro digital
-
-1. Cajero abre modal de pago.
-2. Selecciona digital.
-3. Sistema asume monto recibido igual al total.
-4. Vuelto = 0.
-5. Backend registra venta.
-
-### CU-08: Descuento
-
-1. Supervisor o Administrador aplica descuento.
-2. El sistema valida máximo configurable.
-3. Recalcula subtotal, descuento y total.
-4. Venta queda registrada con desglose.
-
-### CU-09: Anulación
-
-1. Supervisor o Administrador selecciona venta del día.
-2. Sistema valida que no esté anulada/devuelta.
-3. Sistema revierte stock.
-4. Venta cambia a estado ANULADA.
-5. Se registra movimiento de stock.
-
-### CU-10: Devolución
-
-1. Supervisor o Administrador selecciona venta.
-2. Sistema valida que no esté anulada/devuelta.
-3. Sistema devuelve stock.
-4. Sistema registra devolución total de dinero.
-5. Venta cambia a estado DEVUELTA.
-
-### CU-11: Ajuste de stock
-
-1. Supervisor o Administrador selecciona producto.
-2. Ingresa cantidad de ajuste y motivo.
-3. Sistema valida stock resultante no negativo.
-4. Se registra movimiento.
-
-### CU-12: Cierre de caja
-
-1. Supervisor o Administrador ingresa monto físico declarado.
-2. Sistema calcula monto esperado sin mostrarlo antes del cierre.
-3. Calcula desviación.
-4. Cambia caja a CERRADA.
-5. Descarta carrito activo.
-6. Bloquea nuevas ventas hasta nueva apertura.
-
-## 6. Reportes
-
-### Ventas diarias
-
-Debe mostrar:
-- total general;
-- total por método de pago;
-- total por cajero;
-- cantidad de ventas;
-- descuentos aplicados;
-- anulaciones;
-- devoluciones.
-
-### Caja
-
-Debe mostrar:
-- monto inicial;
-- ingresos;
-- retiros;
-- ventas efectivo;
-- ventas digitales;
-- monto declarado;
-- desviación;
-- usuario que abrió;
-- usuario que cerró.
-
-### Stock bajo
-
-Debe listar productos con stock_actual <= stock_minimo.
-
-### Ranking de productos
-
-Debe permitir ranking por:
-- cantidad vendida;
-- monto vendido.
-
-## 7. Exportaciones
-
-Formatos:
-- CSV.
-- Excel.
-- PDF.
-
-Cada usuario puede exportar los reportes que tiene permiso de ver.
-
-## 8. Validaciones Funcionales
-
-- Montos en centavos enteros.
-- Cantidades en unidad mínima.
-- Stock nunca negativo.
-- Username único.
-- Código de barras único.
-- Caja abierta única.
-- Motivo obligatorio en ingresos/retiros.
-- Motivo obligatorio en ajustes de stock.
-- Descuento máximo configurable.
+# Especificación Funcional — Kiosco Billing & Cash POS
+
+Este documento detalla la especificación funcional completa y sin ambigüedades de la aplicación **Kiosco Billing & Cash POS**. Está diseñado para servir como referencia única tanto para la implementación técnica por parte del equipo de desarrollo, como para el diseño de casos de prueba del equipo de control de calidad (QA).
+
+---
+
+## 1. Introducción y Alcance
+
+### 1.1 Resumen del Sistema
+**Kiosco Billing & Cash POS** es una aplicación de Punto de Venta (POS) local y facturación simplificada diseñada para comercios minoristas y kioscos argentinos. Su objetivo central es agilizar el proceso operativo de ventas en el mostrador mediante escaneo de códigos de barra, optimizar el control de inventario en tiempo real sin permitir stock negativo, y asegurar la trazabilidad del flujo de dinero en efectivo e ingresos digitales mediante turnos de caja auditados.
+
+### 1.2 Límites del Sistema (Fuera de Alcance)
+Para mantener la simplicidad técnica y el enfoque MVP (Minimum Viable Product), quedan explícitamente excluidas las siguientes funcionalidades:
+- **Conectividad AFIP / ARCA**: No se realiza emisión de factura fiscal electrónica ni comunicación con entes tributarios oficiales.
+- **Multisucursal y Multitenancy**: La aplicación está pensada para ejecutarse de forma aislada (Single-Tenant) en un único servidor local o VPS por negocio.
+- **Sincronización Multicaja**: No hay comunicación entre múltiples terminales de cobro concurrentes; se asume una única terminal de cobro activa por base de datos.
+- **Métodos de Pago Mixtos**: Cada venta debe pagarse bajo un único método de pago exclusivo (`EFECTIVO` o `DIGITAL`).
+- **Ventas Pendientes / Cuentas Corrientes**: El POS no admite suspender ventas en espera o fiar ("crédito de cliente / cuenta corriente / libreta").
+- **Modificación Manual de Precios**: El cajero no puede cambiar el precio de venta unitario de un producto en caliente desde el carrito de compras; los precios deben ajustarse únicamente desde el panel de administración de Catálogo.
+- **Devoluciones Parciales**: Si un cliente devuelve mercadería de una compra, la venta debe devolverse en su totalidad para revertir el stock de forma íntegra.
+
+---
+
+## 2. Matriz de Roles y Permisos (RBAC)
+
+El sistema opera bajo un control de acceso basado en roles (RBAC) con tres niveles de privilegio claramente definidos. A continuación, se presenta la matriz de permisos para todas las operaciones operativas y administrativas:
+
+| Operación / Recurso | Endpoint / Vista | Cajero | Supervisor | Administrador |
+| :--- | :--- | :---: | :---: | :---: |
+| **Autenticación (Login / Perfil)** | `POST /api/auth/login`<br>`GET /api/users/me` | Sí | Sí | Sí |
+| **Apertura de Caja** | `POST /api/cajas/apertura` | Sí | Sí | Sí |
+| **Cierre de Caja Ciego** | `POST /api/cajas/cierre` | No | Sí | Sí |
+| **Reapertura de Caja Cerrada** | `POST /api/cajas/{id}/reabrir` | No | No | Sí |
+| **Registrar Ingreso/Retiro de Efectivo** | `POST /api/movimientos-caja` | No | Sí | Sí |
+| **Registrar Ventas (Cobro POS)** | `POST /api/ventas` | Sí | Sí | Sí |
+| **Anular Venta (Mismo día)** | `POST /api/ventas/{id}/anular` | No | Sí | Sí |
+| **Devolver Venta (Cualquier día)** | `POST /api/ventas/{id}/devolver` | No | Sí | Sí |
+| **Registrar Ajustes de Stock** | `POST /api/stock/ajuste` | No | Sí | Sí |
+| **Ingreso de Mercadería (Proveedores)** | `POST /api/stock/ingreso` | No | Sí | Sí |
+| **Gestionar Catálogo (CRUD)** | `/api/categorias`<br>`/api/marcas`<br>`/api/proveedores`<br>`/api/productos` | No | Sí | Sí |
+| **Configurar Accesos Rápidos (CRUD)**| `/api/accesos-rapidos` | No | Sí | Sí |
+| **Visualizar Reportes y Exportar** | `/api/reportes/` | No | Sí | Sí |
+| **Crear y Administrar Usuarios (CRUD)**| `/api/users` | No | No | Sí |
+
+---
+
+## 3. Especificación Detallada por Módulo
+
+### 3.1 Módulo Ventas (POS)
+- **Descripción Funcional**: Este módulo permite al operador de caja (Cajero, Supervisor o Administrador) registrar los productos del cliente a través del escaneo de códigos de barras, búsqueda textual predictiva o botones de acceso rápido táctiles, calculando el total neto tras aplicar descuentos y procesando el cobro definitivo.
+- **Caso de Uso Principal**:
+  1. El Cajero abre su caja si aún no está abierta. El sistema le redirige a la pantalla del POS.
+  2. El Cajero pasa un producto por el escáner de códigos de barras o busca en la caja de texto predictiva.
+  3. El sistema añade el producto al carrito con cantidad unitaria (`1`), o incrementa su cantidad si ya estaba en él, recalculando el subtotal y total neto.
+  4. El Cajero presiona la tecla `F2` o el botón "Cobrar" para abrir el modal de pago.
+  5. Selecciona el método de pago (`EFECTIVO` o `DIGITAL`).
+     - Si es *Efectivo*, introduce el monto recibido. El sistema muestra el vuelto.
+     - Si es *Digital*, el sistema inhabilita el vuelto e iguala el monto recibido al total de la venta.
+  6. Presiona "Confirmar Pago". El backend descuenta el stock de forma transaccional, registra la venta y emite una señal de éxito.
+- **Reglas de Negocio Estrictas**:
+  - > [!IMPORTANT]
+    > **Stock no negativo**: El frontend debe impedir la adición al carrito si la cantidad seleccionada supera el stock disponible del producto. La API de backend bloqueará cualquier venta transaccional que resulte en stock negativo devolviendo `INSUFFICIENT_STOCK`.
+  - > [!WARNING]
+    > **Descuento Máximo**: El total de descuentos aplicados no puede superar el porcentaje máximo de descuento configurado en la base de datos (por defecto `50%`). La API rechazará las ventas que lo excedan devolviendo `EXCEEDED_MAX_DISCOUNT`.
+- **Entradas y Salidas**:
+  - **Entradas**: ID de producto escaneado, método de pago, monto recibido.
+  - **Salidas**: Vuelto en pesos decimales, ID de la venta creada, alerta sonora de éxito o error.
+
+### 3.2 Módulo Catálogo (CRUD)
+- **Descripción Funcional**: Proporciona el control administrativo total sobre las entidades del inventario: Productos, Categorías, Marcas, Proveedores y Accesos Rápidos, permitiendo altas, modificaciones y bajas.
+- **Caso de Uso Principal**:
+  1. El Administrador navega al menú "Catálogo".
+  2. Selecciona la pestaña deseada (ej. "Productos").
+  3. Hace clic en "+ Nuevo Producto", completando los datos: Nombre, Categoría, Precio de venta (pesos decimales), Stock inicial, Unidad de medida y códigos de barra asociados.
+  4. Presiona "Guardar". El sistema procesa el registro y actualiza las listas de datos y selectores en caliente.
+- **Reglas de Negocio Estrictas**:
+  - > [!IMPORTANT]
+    > **Manejo de Centavos**: Todos los precios de venta operados en pesos decimales por el usuario en los formularios (ej. `120.50`) se deben convertir a centavos enteros (multiplicando por `100`, ej. `12050`) antes de transmitirse a la API para evitar errores de redondeo de punto flotante en la base de datos.
+  - > [!WARNING]
+    > **Integridad Referencial (Foreign Keys)**: No se puede eliminar una Categoría, Marca o Proveedor que esté activamente referenciado por algún producto del catálogo. El backend arrojará un error 400 que el frontend capturará mostrando un Toast aclaratorio.
+- **Entradas y Salidas**:
+  - **Entradas**: Formularios de creación/edición, cajas de texto de búsqueda.
+  - **Salidas**: Listados interactivos de tablas, Toasts informativos.
+
+### 3.3 Módulo Caja (Turnos y Arqueo)
+- **Descripción Funcional**: Regula el flujo de dinero de la caja registradora, requiriendo una apertura inicial para poder vender y un cierre de turno ciego para auditar los desvíos entre el monto físico contado y el esperado.
+- **Caso de Uso Principal**:
+  1. Al iniciar el turno, el Cajero ingresa el monto inicial de apertura.
+  2. Al finalizar el turno, el Supervisor accede a la sección de cierre de caja, donde cuenta físicamente el dinero en efectivo del cajón y declara dicho total ("monto declarado").
+  3. El sistema calcula internamente el "monto esperado" (fórmula: `inicial` + `ventas_efectivo` + `ingresos` - `retiros`) y la desviación (fórmula: `declarado` - `esperado`).
+  4. La caja se archiva como CERRADA, bloqueando nuevas operaciones en la terminal.
+- **Reglas de Negocio Estrictas**:
+  - > [!IMPORTANT]
+    > **Cierre Ciego**: El sistema no debe mostrar bajo ninguna circunstancia el monto esperado en efectivo al supervisor antes de que declare el dinero físico contado en el formulario, para evitar fraudes u omisiones sistemáticas de arqueo.
+  - > [!WARNING]
+    > **Caja Única**: El sistema valida a nivel base de datos que solo exista una caja activa en estado `ABIERTA` al mismo tiempo.
+- **Entradas y Salidas**:
+  - **Entradas**: Dinero físico inicial en apertura, retiro o ingreso de efectivo con motivo, dinero declarado en el cierre.
+  - **Salidas**: Auditoría de desviación (diferencias de dinero) en el reporte de caja.
+
+### 3.4 Módulo Inventario (Auditoría y Movimientos)
+- **Descripción Funcional**: Permite registrar ingresos físicos de mercadería provenientes de distribuidores externos y hacer ajustes rápidos de stock por pérdidas, roturas o robos.
+- **Caso de Uso Principal**:
+  1. El Supervisor selecciona un producto del catálogo en la vista de inventario.
+  2. Elige "Ingreso de Mercadería", completando la cantidad de unidades que entran y seleccionando de forma obligatoria el Proveedor.
+  3. Presiona "Confirmar". El sistema incrementa el stock, añade un movimiento tipo `INGRESO` y audita el lote.
+- **Reglas de Negocio Estrictas**:
+  - > [!IMPORTANT]
+    > **Trazabilidad Obligatoria**: Todo ingreso de mercadería requiere un proveedor obligatorio asignado. Todo ajuste manual de stock requiere un motivo textual obligatorio.
+- **Entradas y Salidas**:
+  - **Entradas**: ID del producto, cantidad física a ajustar, motivo o proveedor.
+  - **Salidas**: Stock recalculado, histórico de movimientos de stock actualizado.
+
+### 3.5 Módulo Reportes y Exportaciones
+- **Descripción Funcional**: Proporciona consolidados financieros de las ventas del día, desvíos de turnos de cajas anteriores, rankings de productos más demandados y alertas de stock por debajo del mínimo para reposición.
+- **Caso de Uso Principal**:
+  1. El Supervisor ingresa al panel de "Reportes".
+  2. Selecciona un reporte (ej. "Ranking de Productos") y aplica filtros de fecha.
+  3. Visualiza la tabla ordenada y presiona "Exportar PDF". El backend genera y descarga el archivo optimizado para impresión.
+- **Reglas de Negocio Estrictas**:
+  - Los datos exportados no deben diferir en céntimos de los acumulados de las tablas de transacciones.
+- **Entradas y Salidas**:
+  - **Entradas**: Fechas de filtro, tipo de ordenamiento del ranking.
+  - **Salidas**: Archivo binario descargable en formato CSV, Excel (`.xlsx`) o PDF.
+
+---
+
+## 4. Flujos e Integración de Datos
+
+El sistema opera mediante flujos transaccionales altamente acoplados para garantizar la integridad física de la base de datos SQLite. Cuando se confirma una venta en el POS, ocurren los siguientes pasos de forma atómica:
+
+```mermaid
+sequenceDiagram
+    participant POS as Frontend (POS)
+    participant API as Backend (API)
+    participant DB as Base de Datos (SQLite)
+    
+    POS->>API: POST /api/ventas (Detalle de compra y caja)
+    Note over API: Valida que la caja esté ABIERTA
+    Note over API: Valida que haya stock y los precios coincidan
+    API->>DB: Inicia Transacción SQL
+    API->>DB: INSERT INTO ventas (cabecera)
+    API->>DB: INSERT INTO venta_detalles (desglose)
+    API->>DB: UPDATE productos SET stock_actual = stock_actual - cantidad
+    API->>DB: INSERT INTO movimientos_stock (tipo: VENTA, cantidad negativa)
+    API->>DB: Commit Transacción
+    DB-->>API: Transacción Exitosa
+    API-->>POS: HTTP 201 Created (Detalles de la venta y total)
+    Note over POS: Actualiza la caché del POS (Precios y Stock)
+```
+
+### 4.1 Reversión de Datos (Anulación vs Devolución)
+- **Anulación**: Modifica el estado de la venta a `ANULADA`, revierte la salida de stock incrementando la cantidad de unidades correspondientes a los productos vendidos en la tabla `productos`, y registra movimientos de stock tipo `ANULACION` con referencia al ID de la anulación.
+- **Devolución**: Modifica el estado de la venta a `DEVUELTA`, realiza el mismo incremento de stock correspondiente y genera un registro contable de egreso en la caja registradora.
+
+---
+
+## 5. Requisitos de Interfaz y Usabilidad (UX/UI)
+
+### 5.1 Diseño de Layout y Sidebar
+La aplicación cuenta con una distribución responsiva dividida en dos zonas:
+- **Barra Lateral Izquierda (Sidebar)**: Con un ancho fijo de `260px` (`60px` colapsado en pantallas inferiores a `900px`). Contiene los enlaces de navegación directa de los módulos y los datos del usuario logueado en la parte inferior.
+- **Contenedor Principal (Derecha)**: Un visor dinámico (`.views-container`) de `100vw - sidebar` sin barra de scroll general del navegador. Las tablas y formularios dentro del visor manejan scrolls internos específicos para evitar el desborde vertical de la pantalla.
+
+### 5.2 Atajos de Teclado del POS
+Para maximizar la velocidad de operación en el mostrador, se configuran los siguientes atajos globales:
+- **`F2`**: Abre instantáneamente el modal de cobro y pago de la venta en curso (si el carrito tiene ítems).
+- **`F9`**: Limpia completamente el carrito de compras actual tras mostrar una advertencia interactiva de confirmación.
+- **`Enter`**: En el campo de búsqueda de productos, añade el producto directamente al carrito si hay stock.
+
+### 5.3 Gestión del Escáner de Códigos de Barra
+El lector de código de barras físico se integra simulando una ráfaga de entrada de teclado muy veloz. El frontend monitoriza los eventos `keydown` globales y, si detecta una ráfaga completa de caracteres numéricos ingresados en un intervalo menor a `30 milisegundos`, descarta el envío ordinario, interpreta los dígitos como un código de barra (EAN-13), busca el producto correspondiente y lo añade al carrito.
+
+### 5.4 Respuestas Sonoras del Sistema (Web Audio API)
+Para no depender de conexiones de red ni archivos estáticos pesados, el sistema cuenta con un sintetizador de audio offline mediante la Web Audio API que emite señales sonoras de respuesta:
+- **Sonido de Éxito (Beep Agudo)**: Se dispara al añadir con éxito un producto mediante escáner o confirmar un cobro.
+- **Sonido de Error (Zumbido Grave)**: Se dispara al escanear un código inexistente, registrar faltante de stock o al rebotar una validación de guardado de datos.
