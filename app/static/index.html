@@ -14,132 +14,386 @@
 
     <!-- APLICACIÓN PRINCIPAL (POS) -->
     <div id="app" class="app-container hidden">
-        <!-- HEADER (48px) -->
-        <header class="app-header">
-            <div class="header-left">
-                <span class="brand-name">Kiosco POS</span>
-                <span class="divider">|</span>
-                <div class="user-info">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    <span id="header-user-name">Cargando...</span>
-                    <span id="header-user-role" class="badge-role">Rol</span>
-                </div>
+        <!-- BARRA LATERAL (SIDEBAR) -->
+        <aside class="app-sidebar">
+            <div class="sidebar-brand">
+                <span class="brand-logo">🛒</span>
+                <span class="brand-text">Kiosco POS</span>
             </div>
-            
-            <div class="header-center">
-                <div id="caja-badge" class="caja-badge cerrada">Caja Cerrada</div>
-                <div id="connection-status" class="online-indicator">
-                    <span class="dot"></span>
-                    <span class="text">Online</span>
-                </div>
+            <nav class="sidebar-nav">
+                <button type="button" class="nav-item active" data-view="view-pos">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                    <span>Ventas (POS)</span>
+                </button>
+                <button type="button" class="nav-item" data-view="view-catalog" id="nav-catalog">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                    <span>Catálogo</span>
+                </button>
+                <button type="button" class="nav-item" data-view="view-inventory" id="nav-inventory">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M6 21h12M12 17v4"/></svg>
+                    <span>Inventario</span>
+                </button>
+                <button type="button" class="nav-item" data-view="view-sales" id="nav-sales">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span>Historial Ventas</span>
+                </button>
+                <button type="button" class="nav-item" data-view="view-reports" id="nav-reports">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                    <span>Reportes</span>
+                </button>
+                <button type="button" class="nav-item" data-view="view-users" id="nav-users">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>Usuarios</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <span class="app-version">v1.0.0-MVP</span>
             </div>
-            
-            <div class="header-right">
-                <span id="current-time" class="current-time">00:00:00</span>
-                <button id="btn-movimiento-caja" class="btn btn-secondary btn-sm hidden">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Mov. Caja
-                </button>
-                <button id="btn-cerrar-caja" class="btn btn-warning btn-sm hidden">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Cerrar Caja
-                </button>
-                <button id="btn-logout" class="btn btn-danger-link btn-sm">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg> Salir
-                </button>
-            </div>
-        </header>
+        </aside>
 
-        <!-- CONTENIDO PRINCIPAL -->
-        <main class="pos-layout">
-            <!-- COLUMNA IZQUIERDA: BÚSQUEDA Y CATÁLOGO (65%) -->
-            <section class="catalog-section">
-                <!-- BUSCADOR -->
-                <div class="search-container">
-                    <div class="search-box">
-                        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                        <input type="text" id="search-input" placeholder="Buscar producto por nombre o código de barra... (F1)" autocomplete="off">
-                        <span class="scanner-tag">SCANNER ACTIVO</span>
+        <!-- CONTENEDOR PRINCIPAL (DERECHA) -->
+        <div class="main-content">
+            <!-- HEADER (48px) -->
+            <header class="app-header">
+                <div class="header-left">
+                    <span id="sidebar-toggle-display" class="brand-name">Kiosco POS</span>
+                    <span class="divider">|</span>
+                    <div class="user-info">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span id="header-user-name">Cargando...</span>
+                        <span id="header-user-role" class="badge-role">Rol</span>
                     </div>
                 </div>
-
-                <!-- ACCESOS RÁPIDOS -->
-                <div class="quick-access-container">
-                    <h3 class="panel-subtitle">Accesos Rápidos</h3>
-                    <div id="quick-access-grid" class="quick-access-grid">
-                        <!-- Botones rápidos generados por JS -->
+                
+                <div class="header-center">
+                    <div id="caja-badge" class="caja-badge cerrada">Caja Cerrada</div>
+                    <div id="connection-status" class="online-indicator">
+                        <span class="dot"></span>
+                        <span class="text">Online</span>
                     </div>
                 </div>
-
-                <!-- RESULTADOS DE BÚSQUEDA -->
-                <div class="results-container">
-                    <h3 class="panel-subtitle">Resultados de Búsqueda</h3>
-                    <div id="search-results-table-wrapper" class="table-responsive">
-                        <table class="pos-table">
-                            <thead>
-                                <tr>
-                                    <th>Producto</th>
-                                    <th>Código</th>
-                                    <th class="text-right">Precio</th>
-                                    <th class="text-center">Stock</th>
-                                    <th class="text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="search-results-body">
-                                <tr>
-                                    <td colspan="5" class="text-muted text-center py-4">Ingresa un término de búsqueda para ver productos.</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </section>
-
-            <!-- COLUMNA DERECHA: CARRITO Y TOTALES (35%) -->
-            <section class="cart-section">
-                <div class="cart-header">
-                    <h2 class="panel-title">Carrito de Compras</h2>
-                    <button id="btn-vaciar-carrito" class="btn btn-danger-link btn-sm" title="Vaciar Carrito (F9)">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                        <span>Vaciar (F9)</span>
+                
+                <div class="header-right">
+                    <span id="current-time" class="current-time">00:00:00</span>
+                    <button id="btn-movimiento-caja" class="btn btn-secondary btn-sm hidden">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Mov. Caja
+                    </button>
+                    <button id="btn-cerrar-caja" class="btn btn-warning btn-sm hidden">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Cerrar Caja
+                    </button>
+                    <button id="btn-logout" class="btn btn-danger-link btn-sm">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg> Salir
                     </button>
                 </div>
+            </header>
 
-                <!-- LISTA DE ÍTEMS DEL CARRITO -->
-                <div class="cart-items-container">
-                    <div id="cart-empty-state" class="cart-empty-state">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                        <p>El carrito está vacío</p>
-                        <small>Escanea un producto o búscalo arriba</small>
-                    </div>
-                    <ul id="cart-list" class="cart-list hidden">
-                        <!-- Items de carrito por JS -->
-                    </ul>
-                </div>
+            <!-- CONTENEDOR DE VISTAS (VIEWS CONTAINER) -->
+            <div class="views-container">
+                <!-- VISTA 1: VENTAS (POS) -->
+                <main id="view-pos" class="view-panel pos-layout">
+                    <!-- COLUMNA IZQUIERDA: BÚSQUEDA Y CATÁLOGO (65%) -->
+                    <section class="catalog-section">
+                        <!-- BUSCADOR -->
+                        <div class="search-container">
+                            <div class="search-box">
+                                <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" id="search-input" placeholder="Buscar producto por nombre o código de barra... (F1)" autocomplete="off">
+                                <span class="scanner-tag">SCANNER ACTIVO</span>
+                            </div>
+                        </div>
 
-                <!-- DESGLOSE Y TOTALES -->
-                <div class="cart-summary-container">
-                    <div class="summary-row">
-                        <span class="summary-label">Subtotal:</span>
-                        <span id="summary-subtotal" class="summary-val">$0,00</span>
-                    </div>
-                    <div class="summary-row text-warning">
-                        <span class="summary-label">Descuentos Aplicados:</span>
-                        <span id="summary-descuento" class="summary-val">-$0,00</span>
-                    </div>
-                    <div class="summary-total-box">
-                        <span class="total-label">TOTAL NETO:</span>
-                        <span id="summary-total" class="total-val">$0,00</span>
-                    </div>
+                        <!-- ACCESOS RÁPIDOS -->
+                        <div class="quick-access-container">
+                            <h3 class="panel-subtitle">Accesos Rápidos</h3>
+                            <div id="quick-access-grid" class="quick-access-grid">
+                                <!-- Botones rápidos generados por JS -->
+                            </div>
+                        </div>
 
-                    <!-- BOTONES DE ACCIÓN DEL CARRITO -->
-                    <div class="cart-actions-grid">
-                        <button id="btn-cobrar" class="btn btn-success btn-lg" disabled>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                            <span>Proceder al Cobro (F2)</span>
+                        <!-- RESULTADOS DE BÚSQUEDA -->
+                        <div class="results-container">
+                            <h3 class="panel-subtitle">Resultados de Búsqueda</h3>
+                            <div id="search-results-table-wrapper" class="table-responsive">
+                                <table class="pos-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Código</th>
+                                            <th class="text-right">Precio</th>
+                                            <th class="text-center">Stock</th>
+                                            <th class="text-center">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="search-results-body">
+                                        <tr>
+                                            <td colspan="5" class="text-muted text-center py-4">Ingresa un término de búsqueda para ver productos.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- COLUMNA DERECHA: CARRITO Y TOTALES (35%) -->
+                    <section class="cart-section">
+                        <div class="cart-header">
+                            <h2 class="panel-title">Carrito de Compras</h2>
+                            <button id="btn-vaciar-carrito" class="btn btn-danger-link btn-sm" title="Vaciar Carrito (F9)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                <span>Vaciar (F9)</span>
+                            </button>
+                        </div>
+
+                        <!-- LISTA DE ÍTEMS DEL CARRITO -->
+                        <div class="cart-items-container">
+                            <div id="cart-empty-state" class="cart-empty-state">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                                <p>El carrito está vacío</p>
+                                <small>Escanea un producto o búscalo arriba</small>
+                            </div>
+                            <ul id="cart-list" class="cart-list hidden">
+                                <!-- Items de carrito por JS -->
+                            </ul>
+                        </div>
+
+                        <!-- DESGLOSE Y TOTALES -->
+                        <div class="cart-summary-container">
+                            <div class="summary-row">
+                                <span class="summary-label">Subtotal:</span>
+                                <span id="summary-subtotal" class="summary-val">$0,00</span>
+                            </div>
+                            <div class="summary-row text-warning">
+                                <span class="summary-label">Descuentos Aplicados:</span>
+                                <span id="summary-descuento" class="summary-val">-$0,00</span>
+                            </div>
+                            <div class="summary-total-box">
+                                <span class="total-label">TOTAL NETO:</span>
+                                <span id="summary-total" class="total-val">$0,00</span>
+                            </div>
+
+                            <!-- BOTONES DE ACCIÓN DEL CARRITO -->
+                            <div class="cart-actions-grid">
+                                <button id="btn-cobrar" class="btn btn-success btn-lg" disabled>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    <span>Proceder al Cobro (F2)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </main>
+
+                <!-- VISTA 2: CATÁLOGO (CRUD COMPLETO) -->
+                <section id="view-catalog" class="view-panel hidden">
+                    <!-- Barra de Sub-Pestañas (Sub-Tabs) -->
+                    <div class="catalog-subtabs">
+                        <button type="button" class="subtab-btn active" data-subtab="catalog-products">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            Productos
+                        </button>
+                        <button type="button" class="subtab-btn" data-subtab="catalog-categories">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                            Categorías
+                        </button>
+                        <button type="button" class="subtab-btn" data-subtab="catalog-brands">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Marcas
+                        </button>
+                        <button type="button" class="subtab-btn" data-subtab="catalog-providers">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            Proveedores
+                        </button>
+                        <button type="button" class="subtab-btn" data-subtab="catalog-quick">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            Accesos Rápidos
                         </button>
                     </div>
-                </div>
-            </section>
-        </main>
+
+                    <!-- Contenedores de Contenido de Catálogo -->
+                    <div class="catalog-content">
+                        <!-- SUB-TAB 1: PRODUCTOS -->
+                        <div id="catalog-products" class="subtab-panel active">
+                            <div class="catalog-header-actions">
+                                <div class="catalog-search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="catalog-search-products" placeholder="Buscar por nombre o código de barra...">
+                                </div>
+                                <button type="button" id="btn-add-product" class="btn btn-primary btn-md">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Nuevo Producto
+                                </button>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="pos-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Categoría</th>
+                                            <th>Marca</th>
+                                            <th class="text-right" style="width: 140px;">Precio Venta</th>
+                                            <th class="text-center" style="width: 120px;">Stock</th>
+                                            <th class="text-center" style="width: 100px;">Estado</th>
+                                            <th class="text-center" style="width: 180px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="catalog-products-body">
+                                        <!-- Cargado vía JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB 2: CATEGORÍAS -->
+                        <div id="catalog-categories" class="subtab-panel hidden">
+                            <div class="catalog-header-actions">
+                                <div class="catalog-search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="catalog-search-categories" placeholder="Buscar categoría...">
+                                </div>
+                                <button type="button" id="btn-add-category" class="btn btn-primary btn-md">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Nueva Categoría
+                                </button>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="pos-table" style="max-width: 600px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre de Categoría</th>
+                                            <th class="text-center" style="width: 150px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="catalog-categories-body">
+                                        <!-- Cargado vía JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB 3: MARCAS -->
+                        <div id="catalog-brands" class="subtab-panel hidden">
+                            <div class="catalog-header-actions">
+                                <div class="catalog-search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="catalog-search-brands" placeholder="Buscar marca...">
+                                </div>
+                                <button type="button" id="btn-add-brand" class="btn btn-primary btn-md">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Nueva Marca
+                                </button>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="pos-table" style="max-width: 600px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre de Marca</th>
+                                            <th class="text-center" style="width: 150px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="catalog-brands-body">
+                                        <!-- Cargado vía JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB 4: PROVEEDORES -->
+                        <div id="catalog-providers" class="subtab-panel hidden">
+                            <div class="catalog-header-actions">
+                                <div class="catalog-search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="catalog-search-providers" placeholder="Buscar proveedor...">
+                                </div>
+                                <button type="button" id="btn-add-provider" class="btn btn-primary btn-md">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Nuevo Proveedor
+                                </button>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="pos-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Nombre</th>
+                                            <th>Teléfono</th>
+                                            <th>Email</th>
+                                            <th class="text-center" style="width: 150px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="catalog-providers-body">
+                                        <!-- Cargado vía JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- SUB-TAB 5: ACCESOS RÁPIDOS -->
+                        <div id="catalog-quick" class="subtab-panel hidden">
+                            <div class="catalog-header-actions">
+                                <div class="catalog-search-box">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="catalog-search-quick" placeholder="Buscar acceso rápido...">
+                                </div>
+                                <button type="button" id="btn-add-quick" class="btn btn-primary btn-md">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                    Configurar Acceso Rápido
+                                </button>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="pos-table" style="max-width: 800px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Etiqueta en Botón</th>
+                                            <th class="text-center" style="width: 120px;">Orden</th>
+                                            <th class="text-center" style="width: 100px;">Estado</th>
+                                            <th class="text-center" style="width: 150px;">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="catalog-quick-body">
+                                        <!-- Cargado vía JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VISTA 3: INVENTARIO (PLACEHOLDER) -->
+                <section id="view-inventory" class="view-panel hidden">
+                    <div class="placeholder-view">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M6 21h12M12 17v4"/></svg>
+                        <h2>Módulo Inventario</h2>
+                        <p>El panel de ajustes de stock, ingresos de mercadería y movimientos de inventario se encuentra en desarrollo.</p>
+                    </div>
+                </section>
+
+                <!-- VISTA 4: HISTORIAL VENTAS (PLACEHOLDER) -->
+                <section id="view-sales" class="view-panel hidden">
+                    <div class="placeholder-view">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <h2>Historial de Ventas</h2>
+                        <p>El panel para buscar transacciones, ver detalles y aplicar devoluciones/anulaciones se encuentra en desarrollo.</p>
+                    </div>
+                </section>
+
+                <!-- VISTA 5: REPORTES (PLACEHOLDER) -->
+                <section id="view-reports" class="view-panel hidden">
+                    <div class="placeholder-view">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                        <h2>Módulo Reportes</h2>
+                        <p>El panel de estadísticas de ventas, cierres de caja y exportación de reportes se encuentra en desarrollo.</p>
+                    </div>
+                </section>
+
+                <!-- VISTA 6: USUARIOS (PLACEHOLDER) -->
+                <section id="view-users" class="view-panel hidden">
+                    <div class="placeholder-view">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <h2>Módulo Usuarios</h2>
+                        <p>El panel de administración y control de accesos de usuarios se encuentra en desarrollo.</p>
+                    </div>
+                </section>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL 1: LOGIN -->
@@ -323,6 +577,225 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: PRODUCTO -->
+    <div id="modal-producto" class="modal-backdrop hidden">
+        <div class="modal-card modal-md animate-scale">
+            <div class="modal-header">
+                <h2 id="modal-producto-title">Crear Producto</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-producto" class="modal-form">
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="prod-nombre">Nombre (*)</label>
+                        <input type="text" id="prod-nombre" required placeholder="Ej. Alfajor Jorgito Blanco">
+                    </div>
+                    <div class="form-group flex-1" style="max-width: 180px;">
+                        <label for="prod-unidad">Unidad (*)</label>
+                        <select id="prod-unidad" required class="select-modern">
+                            <option value="UNIDAD">UNIDAD</option>
+                            <option value="GRAMO">GRAMO</option>
+                            <option value="MILILITRO">MILILITRO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="prod-descripcion">Descripción</label>
+                    <textarea id="prod-descripcion" placeholder="Opcional: Detalles del producto..." rows="2" class="textarea-modern"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="prod-categoria">Categoría (*)</label>
+                        <select id="prod-categoria" required class="select-modern">
+                            <option value="">Seleccione Categoría</option>
+                            <!-- JS dinámico -->
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="prod-marca">Marca</label>
+                        <select id="prod-marca" class="select-modern">
+                            <option value="">Ninguna</option>
+                            <!-- JS dinámico -->
+                        </select>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="prod-proveedor">Proveedor Principal</label>
+                        <select id="prod-proveedor" class="select-modern">
+                            <option value="">Ninguno</option>
+                            <!-- JS dinámico -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-1">
+                        <label for="prod-precio">Precio Venta ($) (*)</label>
+                        <div class="input-currency-wrapper">
+                            <span class="currency-symbol">$</span>
+                            <input type="number" id="prod-precio" min="0.01" step="0.01" required placeholder="0.00" class="input-currency">
+                        </div>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="prod-stock">Stock Actual</label>
+                        <input type="number" id="prod-stock" min="0" value="0" required>
+                    </div>
+                    <div class="form-group flex-1">
+                        <label for="prod-stock-min">Stock Mínimo</label>
+                        <input type="number" id="prod-stock-min" min="0" value="0" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group flex-2">
+                        <label for="prod-imagen">Imagen URL</label>
+                        <input type="text" id="prod-imagen" placeholder="Ej. /static/images/coca.png">
+                    </div>
+                    <div class="form-group flex-1">
+                        <label>Estado</label>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="prod-activo" checked>
+                            <label for="prod-activo">Activo</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CÓDIGOS DE BARRA INTERACTIVOS -->
+                <div class="form-group">
+                    <label>Códigos de Barras asociados</label>
+                    <div class="barcode-manager-box">
+                        <div class="barcode-input-row">
+                            <input type="text" id="prod-new-barcode" placeholder="Escribe o escanea un código...">
+                            <button type="button" id="btn-add-barcode-chip" class="btn btn-secondary btn-sm">Asociar</button>
+                        </div>
+                        <div id="barcode-chips-container" class="barcode-chips-container">
+                            <!-- Chips renderizados dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+
+                <div id="producto-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Producto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 7: CATEGORÍA -->
+    <div id="modal-categoria" class="modal-backdrop hidden">
+        <div class="modal-card modal-sm animate-scale">
+            <div class="modal-header">
+                <h2 id="modal-categoria-title">Crear Categoría</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-categoria" class="modal-form">
+                <div class="form-group">
+                    <label for="cat-nombre">Nombre de Categoría (*)</label>
+                    <input type="text" id="cat-nombre" required placeholder="Ej. Bebidas">
+                </div>
+                <div id="categoria-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 8: MARCA -->
+    <div id="modal-marca" class="modal-backdrop hidden">
+        <div class="modal-card modal-sm animate-scale">
+            <div class="modal-header">
+                <h2 id="modal-marca-title">Crear Marca</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-marca" class="modal-form">
+                <div class="form-group">
+                    <label for="mar-nombre">Nombre de Marca (*)</label>
+                    <input type="text" id="mar-nombre" required placeholder="Ej. Coca-Cola">
+                </div>
+                <div id="marca-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 9: PROVEEDOR -->
+    <div id="modal-proveedor" class="modal-backdrop hidden">
+        <div class="modal-card modal-sm animate-scale">
+            <div class="modal-header">
+                <h2 id="modal-proveedor-title">Crear Proveedor</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-proveedor" class="modal-form">
+                <div class="form-group">
+                    <label for="prov-nombre">Nombre/Razón Social (*)</label>
+                    <input type="text" id="prov-nombre" required placeholder="Ej. Mayorista San Martín">
+                </div>
+                <div class="form-group">
+                    <label for="prov-telefono">Teléfono</label>
+                    <input type="text" id="prov-telefono" placeholder="Ej. 11-4567-8901">
+                </div>
+                <div class="form-group">
+                    <label for="prov-email">Email</label>
+                    <input type="email" id="prov-email" placeholder="Ej. ventas@mayorista.com">
+                </div>
+                <div id="proveedor-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 10: ACCESO RÁPIDO -->
+    <div id="modal-acceso-rapido" class="modal-backdrop hidden">
+        <div class="modal-card modal-sm animate-scale">
+            <div class="modal-header">
+                <h2 id="modal-acceso-rapido-title">Configurar Acceso Rápido</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-acceso-rapido" class="modal-form">
+                <div class="form-group">
+                    <label for="aq-producto">Producto (*)</label>
+                    <select id="aq-producto" required class="select-modern">
+                        <option value="">Seleccione un producto</option>
+                        <!-- JS dinámico -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="aq-etiqueta">Etiqueta en Botón (*)</label>
+                    <input type="text" id="aq-etiqueta" required placeholder="Ej. Coca 500" maxlength="15">
+                    <small style="color: var(--color-text-muted); font-size: 0.75rem; margin-top: 2px;">Etiqueta corta (máx. 15 caracteres) recomendada para botones táctiles.</small>
+                </div>
+                <div class="form-group">
+                    <label for="aq-orden">Orden de aparición (*)</label>
+                    <input type="number" id="aq-orden" required min="1" placeholder="Ej. 1">
+                    <small style="color: var(--color-text-muted); font-size: 0.75rem; margin-top: 2px;">Número entero único. Define el orden de izquierda a derecha en la pantalla.</small>
+                </div>
+                <div class="form-group">
+                    <label>Estado</label>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="aq-activo" checked>
+                        <label for="aq-activo">Acceso Activo</label>
+                    </div>
+                </div>
+                <div id="acceso-rapido-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
         </div>
     </div>
 

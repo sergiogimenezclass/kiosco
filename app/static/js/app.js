@@ -11,7 +11,10 @@ const state = {
     quickAccesses: [],     // Configuraciones de accesos rápidos
     cart: JSON.parse(localStorage.getItem('kiosco_cart')) || [],
     searchResults: [],     // Resultados de la búsqueda predictiva actual
-    paymentMethod: 'EFECTIVO' // EFECTIVO o DIGITAL
+    paymentMethod: 'EFECTIVO', // EFECTIVO o DIGITAL
+    currentView: 'view-pos',
+    currentCatalogSubtab: 'catalog-products',
+    editingProductBarcodes: []
 };
 
 // --- CONFIGURACIÓN ---
@@ -166,6 +169,9 @@ async function checkAuth() {
             document.getElementById('header-user-name').textContent = state.user.nombre;
             document.getElementById('header-user-role').textContent = state.user.rol;
             
+            // Configurar permisos de navegación en Sidebar
+            setupNavigationPermissions();
+            
             // Inicializar POS
             initializePOS();
         } else {
@@ -204,7 +210,10 @@ async function login(username, password) {
             document.getElementById('app').classList.remove('hidden');
             
             document.getElementById('header-user-name').textContent = state.user.nombre;
-            document.getElementById('header-user-role').textContent = state.user.rol;
+            document.getElementById('header-user-role').textContent = data.user.rol;
+            
+            // Configurar permisos de navegación en Sidebar
+            setupNavigationPermissions();
             
             playSuccessSound();
             showToast(`¡Bienvenido, ${state.user.nombre}!`, 'success');
@@ -225,11 +234,986 @@ function logout() {
     state.activeCaja = null;
     localStorage.removeItem('kiosco_token');
     
+    // Resetear a vista POS por defecto en logout
+    switchView('view-pos');
+    
     // Ocultar app y mostrar login
     document.getElementById('app').classList.add('hidden');
     hideAllModals();
     showModal('modal-login');
     document.getElementById('form-login').reset();
+}
+
+// ==========================================================================
+// CONTROL DE NAVEGACIÓN Y PANELES (PASO 0)
+// ==========================================================================
+
+function switchView(viewId) {
+    // 1. Quitar clase active de todos los nav items
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // 2. Activar el nav item correspondiente
+    const targetItem = document.querySelector(`.nav-item[data-view="${viewId}"]`);
+    if (targetItem) {
+        targetItem.classList.add('active');
+    }
+
+    // 3. Ocultar todos los paneles de vista
+    document.querySelectorAll('.view-panel').forEach(panel => {
+        panel.classList.add('hidden');
+    });
+
+    // 4. Mostrar el panel de vista activo
+    const targetPanel = document.getElementById(viewId);
+    if (targetPanel) {
+        targetPanel.classList.remove('hidden');
+        
+        // Auto focus en buscador si volvemos a la vista del POS
+        if (viewId === 'view-pos') {
+            const searchInput = document.getElementById('search-input');
+            if (searchInput && state.activeCaja) {
+                searchInput.focus();
+            }
+        }
+        
+        // Inicializar datos si vamos al panel de Catálogo
+        if (viewId === 'view-catalog') {
+            switchCatalogSubtab(state.currentCatalogSubtab || 'catalog-products');
+        }
+    }
+
+    state.currentView = viewId;
+}
+
+function setupNavigationPermissions() {
+    if (!state.user) return;
+
+    const rol = state.user.rol;
+    const navCatalog = document.getElementById('nav-catalog');
+    const navInventory = document.getElementById('nav-inventory');
+    const navSales = document.getElementById('nav-sales');
+    const navReports = document.getElementById('nav-reports');
+    const navUsers = document.getElementById('nav-users');
+
+    // Resetear visibilidad por defecto
+    const items = [navCatalog, navInventory, navSales, navReports, navUsers];
+    items.forEach(item => {
+        if (item) item.classList.remove('hidden');
+    });
+
+    if (rol === 'CAJERO') {
+        // El cajero solo puede ver Ventas (POS)
+        if (navCatalog) navCatalog.classList.add('hidden');
+        if (navInventory) navInventory.classList.add('hidden');
+        if (navSales) navSales.classList.add('hidden');
+        if (navReports) navReports.classList.add('hidden');
+        if (navUsers) navUsers.classList.add('hidden');
+    } else if (rol === 'SUPERVISOR') {
+        // El supervisor no puede ver administración de usuarios
+        if (navUsers) navUsers.classList.add('hidden');
+    }
+    
+    // Iniciar siempre en la vista de Ventas (POS)
+    switchView('view-pos');
+}
+
+// ==========================================================================
+// MÓDULO DE CATÁLOGO (CRUD COMPLETO - PASO 1)
+// ==========================================================================
+
+let activeCatalogCategoryObj = null;
+let activeCatalogBrandObj = null;
+let activeCatalogProviderObj = null;
+let activeCatalogProductObj = null;
+let activeCatalogQuickObj = null;
+
+// Cambiar de Sub-Pestaña de Catálogo
+function switchCatalogSubtab(subtabId) {
+    // 1. Quitar active de subtab buttons
+    document.querySelectorAll('.subtab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // 2. Activar el botón correspondiente
+    const targetBtn = document.querySelector(`.subtab-btn[data-subtab="${subtabId}"]`);
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+    }
+
+    // 3. Ocultar todos los subtab panels
+    document.querySelectorAll('.subtab-panel').forEach(panel => {
+        panel.classList.add('hidden');
+    });
+
+    // 4. Mostrar el panel activo
+    const targetPanel = document.getElementById(subtabId);
+    if (targetPanel) {
+        targetPanel.classList.remove('hidden');
+        
+        // Cargar datos del subtab
+        loadCatalogSubtabData(subtabId);
+    }
+
+    state.currentCatalogSubtab = subtabId;
+}
+
+// Disparar carga de datos según subtab
+function loadCatalogSubtabData(subtabId) {
+    if (subtabId === 'catalog-products') {
+        loadCatalogProducts();
+    } else if (subtabId === 'catalog-categories') {
+        loadCatalogCategories();
+    } else if (subtabId === 'catalog-brands') {
+        loadCatalogBrands();
+    } else if (subtabId === 'catalog-providers') {
+        loadCatalogProviders();
+    } else if (subtabId === 'catalog-quick') {
+        loadCatalogQuick();
+    }
+}
+
+// --- CATEGORÍAS ---
+async function loadCatalogCategories(query = '') {
+    const tbody = document.getElementById('catalog-categories-body');
+    if (!tbody) return;
+
+    try {
+        const response = await apiRequest('/categorias');
+        if (response.ok) {
+            const data = await response.json();
+            const filtered = data.filter(cat => cat.nombre.toLowerCase().includes(query.toLowerCase().trim()));
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="text-muted text-center py-4">No se encontraron categorías.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            filtered.forEach(cat => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 500;">${cat.nombre}</td>
+                    <td class="text-center">
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm btn-edit-cat" data-id="${cat.id}">Editar</button>
+                            <button class="btn btn-danger-link btn-sm btn-delete-cat" data-id="${cat.id}">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                
+                tr.querySelector('.btn-edit-cat').addEventListener('click', () => openCategoryModal(cat));
+                tr.querySelector('.btn-delete-cat').addEventListener('click', () => deleteCategory(cat.id, cat.nombre));
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        showToast("Error al cargar categorías", "error");
+    }
+}
+
+function openCategoryModal(cat = null) {
+    activeCatalogCategoryObj = cat;
+    const form = document.getElementById('form-categoria');
+    const title = document.getElementById('modal-categoria-title');
+    const input = document.getElementById('cat-nombre');
+    const errorDiv = document.getElementById('categoria-error');
+    
+    errorDiv.classList.add('hidden');
+    form.reset();
+
+    if (cat) {
+        title.textContent = "Editar Categoría";
+        input.value = cat.nombre;
+    } else {
+        title.textContent = "Crear Categoría";
+    }
+
+    showModal('modal-categoria');
+}
+
+async function saveCategory(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('categoria-error');
+    const nombre = document.getElementById('cat-nombre').value.trim();
+    
+    if (!nombre) {
+        errorDiv.textContent = "El nombre es obligatorio.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    const payload = { nombre };
+    const method = activeCatalogCategoryObj ? 'PUT' : 'POST';
+    const endpoint = activeCatalogCategoryObj ? `/categorias/${activeCatalogCategoryObj.id}` : '/categorias';
+
+    try {
+        const response = await apiRequest(endpoint, {
+            method,
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast(activeCatalogCategoryObj ? "Categoría actualizada correctamente" : "Categoría creada correctamente", "success");
+            document.getElementById('modal-categoria').classList.add('hidden');
+            loadCatalogCategories();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Error al guardar la categoría. Asegúrese de que el nombre sea único.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function deleteCategory(id, name) {
+    if (!confirm(`¿Está seguro que desea eliminar la categoría "${name}"?`)) return;
+
+    try {
+        const response = await apiRequest(`/categorias/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Categoría eliminada con éxito", "success");
+            loadCatalogCategories();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se puede eliminar la categoría. Probablemente tiene productos asociados.");
+        }
+    } catch (e) {
+        playErrorSound();
+        showToast(e.message, "error");
+    }
+}
+
+// --- MARCAS ---
+async function loadCatalogBrands(query = '') {
+    const tbody = document.getElementById('catalog-brands-body');
+    if (!tbody) return;
+
+    try {
+        const response = await apiRequest('/marcas');
+        if (response.ok) {
+            const data = await response.json();
+            const filtered = data.filter(mar => mar.nombre.toLowerCase().includes(query.toLowerCase().trim()));
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="text-muted text-center py-4">No se encontraron marcas.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            filtered.forEach(mar => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 500;">${mar.nombre}</td>
+                    <td class="text-center">
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm btn-edit-brand" data-id="${mar.id}">Editar</button>
+                            <button class="btn btn-danger-link btn-sm btn-delete-brand" data-id="${mar.id}">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                
+                tr.querySelector('.btn-edit-brand').addEventListener('click', () => openBrandModal(mar));
+                tr.querySelector('.btn-delete-brand').addEventListener('click', () => deleteBrand(mar.id, mar.nombre));
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        showToast("Error al cargar marcas", "error");
+    }
+}
+
+function openBrandModal(mar = null) {
+    activeCatalogBrandObj = mar;
+    const form = document.getElementById('form-marca');
+    const title = document.getElementById('modal-marca-title');
+    const input = document.getElementById('mar-nombre');
+    const errorDiv = document.getElementById('marca-error');
+    
+    errorDiv.classList.add('hidden');
+    form.reset();
+
+    if (mar) {
+        title.textContent = "Editar Marca";
+        input.value = mar.nombre;
+    } else {
+        title.textContent = "Crear Marca";
+    }
+
+    showModal('modal-marca');
+}
+
+async function saveBrand(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('marca-error');
+    const nombre = document.getElementById('mar-nombre').value.trim();
+    
+    if (!nombre) {
+        errorDiv.textContent = "El nombre es obligatorio.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    const payload = { nombre };
+    const method = activeCatalogBrandObj ? 'PUT' : 'POST';
+    const endpoint = activeCatalogBrandObj ? `/marcas/${activeCatalogBrandObj.id}` : '/marcas';
+
+    try {
+        const response = await apiRequest(endpoint, {
+            method,
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast(activeCatalogBrandObj ? "Marca actualizada correctamente" : "Marca creada correctamente", "success");
+            document.getElementById('modal-marca').classList.add('hidden');
+            loadCatalogBrands();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Error al guardar la marca. Asegúrese de que el nombre sea único.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function deleteBrand(id, name) {
+    if (!confirm(`¿Está seguro que desea eliminar la marca "${name}"?`)) return;
+
+    try {
+        const response = await apiRequest(`/marcas/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Marca eliminada con éxito", "success");
+            loadCatalogBrands();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se puede eliminar la marca. Probablemente tiene productos asociados.");
+        }
+    } catch (e) {
+        playErrorSound();
+        showToast(e.message, "error");
+    }
+}
+
+// --- PROVEEDORES ---
+async function loadCatalogProviders(query = '') {
+    const tbody = document.getElementById('catalog-providers-body');
+    if (!tbody) return;
+
+    try {
+        const response = await apiRequest('/proveedores');
+        if (response.ok) {
+            const data = await response.json();
+            const filtered = data.filter(p => 
+                p.nombre.toLowerCase().includes(query.toLowerCase().trim()) ||
+                (p.telefono && p.telefono.includes(query)) ||
+                (p.email && p.email.toLowerCase().includes(query.toLowerCase()))
+            );
+            
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-muted text-center py-4">No se encontraron proveedores.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="font-weight: 500;">${p.nombre}</td>
+                    <td style="font-family:var(--font-mono);">${p.telefono || '-'}</td>
+                    <td>${p.email || '-'}</td>
+                    <td class="text-center">
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm btn-edit-prov" data-id="${p.id}">Editar</button>
+                            <button class="btn btn-danger-link btn-sm btn-delete-prov" data-id="${p.id}">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+                
+                tr.querySelector('.btn-edit-prov').addEventListener('click', () => openProviderModal(p));
+                tr.querySelector('.btn-delete-prov').addEventListener('click', () => deleteProvider(p.id, p.nombre));
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        showToast("Error al cargar proveedores", "error");
+    }
+}
+
+function openProviderModal(prov = null) {
+    activeCatalogProviderObj = prov;
+    const form = document.getElementById('form-proveedor');
+    const title = document.getElementById('modal-proveedor-title');
+    const nameInput = document.getElementById('prov-nombre');
+    const telInput = document.getElementById('prov-telefono');
+    const mailInput = document.getElementById('prov-email');
+    const errorDiv = document.getElementById('proveedor-error');
+    
+    errorDiv.classList.add('hidden');
+    form.reset();
+
+    if (prov) {
+        title.textContent = "Editar Proveedor";
+        nameInput.value = prov.nombre;
+        telInput.value = prov.telefono || '';
+        mailInput.value = prov.email || '';
+    } else {
+        title.textContent = "Crear Proveedor";
+    }
+
+    showModal('modal-proveedor');
+}
+
+async function saveProvider(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('proveedor-error');
+    const nombre = document.getElementById('prov-nombre').value.trim();
+    const telefono = document.getElementById('prov-telefono').value.trim() || null;
+    const email = document.getElementById('prov-email').value.trim() || null;
+    
+    if (!nombre) {
+        errorDiv.textContent = "El nombre es obligatorio.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    const payload = { nombre, telefono, email };
+    const method = activeCatalogProviderObj ? 'PUT' : 'POST';
+    const endpoint = activeCatalogProviderObj ? `/proveedores/${activeCatalogProviderObj.id}` : '/proveedores';
+
+    try {
+        const response = await apiRequest(endpoint, {
+            method,
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast(activeCatalogProviderObj ? "Proveedor actualizado correctamente" : "Proveedor creado correctamente", "success");
+            document.getElementById('modal-proveedor').classList.add('hidden');
+            loadCatalogProviders();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Error al guardar el proveedor.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function deleteProvider(id, name) {
+    if (!confirm(`¿Está seguro que desea eliminar el proveedor "${name}"?`)) return;
+
+    try {
+        const response = await apiRequest(`/proveedores/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Proveedor eliminado con éxito", "success");
+            loadCatalogProviders();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se puede eliminar el proveedor. Probablemente tiene productos asociados.");
+        }
+    } catch (e) {
+        playErrorSound();
+        showToast(e.message, "error");
+    }
+}
+
+// --- PRODUCTOS ---
+async function loadCatalogProducts(query = '') {
+    const tbody = document.getElementById('catalog-products-body');
+    if (!tbody) return;
+
+    try {
+        // Obtenemos todos los productos (activos e inactivos)
+        const response = await apiRequest('/productos');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Filtrar localmente
+            const cleanQuery = query.toLowerCase().trim();
+            const filtered = data.filter(p => 
+                p.nombre.toLowerCase().includes(cleanQuery) ||
+                (p.descripcion && p.descripcion.toLowerCase().includes(cleanQuery)) ||
+                p.codigos_barras.some(c => c.includes(cleanQuery))
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">No se encontraron productos en el catálogo.</td></tr>';
+                return;
+            }
+
+            // Traer categorías y marcas para mapear nombres en la tabla
+            const [catRes, marRes] = await Promise.all([
+                apiRequest('/categorias'),
+                apiRequest('/marcas')
+            ]);
+            
+            let categories = [];
+            let brands = [];
+            if (catRes.ok) categories = await catRes.json();
+            if (marRes.ok) brands = await marRes.json();
+
+            tbody.innerHTML = '';
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                
+                // Mapear Nombres de FKs
+                const catObj = categories.find(c => c.id === p.categoria_id);
+                const catName = catObj ? catObj.nombre : '-';
+                const marObj = brands.find(m => m.id === p.marca_id);
+                const marName = marObj ? marObj.nombre : '-';
+
+                // Stock label
+                let stockClass = 'normal';
+                if (p.stock_actual <= 0) stockClass = 'empty';
+                else if (p.stock_actual <= p.stock_minimo) stockClass = 'low';
+
+                // Activo Badge
+                const statusBadge = p.activo === 1 
+                    ? '<span class="badge-status active">Activo</span>' 
+                    : '<span class="badge-status inactive">Inactivo</span>';
+
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight: 600;">${p.nombre}</div>
+                        <div style="font-size:0.75rem; color:var(--color-text-muted); font-family:var(--font-mono);">${p.codigos_barras.join(', ') || 'Sin códigos'}</div>
+                    </td>
+                    <td>${catName}</td>
+                    <td>${marName}</td>
+                    <td class="text-right price-tag">${formatMoney(p.precio_venta_centavos)}</td>
+                    <td class="text-center">
+                        <span class="stock-tag ${stockClass}">${p.stock_actual} / min: ${p.stock_minimo}</span>
+                    </td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-center">
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm btn-edit-prod" data-id="${p.id}">Editar</button>
+                            <button class="btn btn-danger-link btn-sm btn-delete-prod" data-id="${p.id}">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+
+                tr.querySelector('.btn-edit-prod').addEventListener('click', () => openProductModal(p));
+                tr.querySelector('.btn-delete-prod').addEventListener('click', () => deleteProduct(p.id, p.nombre));
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        showToast("Error al cargar productos del catálogo", "error");
+    }
+}
+
+// Cargar selectores dinámicos del formulario
+async function populateProductFormSelects() {
+    const catSelect = document.getElementById('prod-categoria');
+    const marSelect = document.getElementById('prod-marca');
+    const provSelect = document.getElementById('prod-proveedor');
+
+    // Limpiar options excepto la primera
+    catSelect.innerHTML = '<option value="">Seleccione Categoría</option>';
+    marSelect.innerHTML = '<option value="">Ninguna</option>';
+    provSelect.innerHTML = '<option value="">Ninguno</option>';
+
+    try {
+        const [catsRes, marsRes, provsRes] = await Promise.all([
+            apiRequest('/categorias'),
+            apiRequest('/marcas'),
+            apiRequest('/proveedores')
+        ]);
+
+        if (catsRes.ok) {
+            const cats = await catsRes.json();
+            cats.forEach(c => {
+                catSelect.innerHTML += `<option value="${c.id}">${c.nombre}</option>`;
+            });
+        }
+        if (marsRes.ok) {
+            const mars = await marsRes.json();
+            mars.forEach(m => {
+                marSelect.innerHTML += `<option value="${m.id}">${m.nombre}</option>`;
+            });
+        }
+        if (provsRes.ok) {
+            const provs = await provsRes.json();
+            provs.forEach(p => {
+                provSelect.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+            });
+        }
+    } catch (e) {
+        console.error("Error populating select fields in product modal:", e);
+    }
+}
+
+// Control interactivo de Códigos de barra (Chips)
+function renderBarcodeChips() {
+    const container = document.getElementById('barcode-chips-container');
+    if (!container) return;
+    container.innerHTML = '';
+
+    state.editingProductBarcodes.forEach(code => {
+        const chip = document.createElement('div');
+        chip.className = 'barcode-chip';
+        chip.innerHTML = `
+            <span>${code}</span>
+            <button type="button" class="remove-chip" data-code="${code}">&times;</button>
+        `;
+        chip.querySelector('.remove-chip').addEventListener('click', () => removeBarcodeChip(code));
+        container.appendChild(chip);
+    });
+}
+
+function addBarcodeChip(code) {
+    const cleanCode = code.trim();
+    if (!cleanCode) return;
+    
+    if (state.editingProductBarcodes.includes(cleanCode)) {
+        showToast("Este código de barras ya está asociado en el formulario", "warning");
+        return;
+    }
+
+    state.editingProductBarcodes.push(cleanCode);
+    renderBarcodeChips();
+}
+
+function removeBarcodeChip(code) {
+    state.editingProductBarcodes = state.editingProductBarcodes.filter(c => c !== code);
+    renderBarcodeChips();
+}
+
+async function openProductModal(prod = null) {
+    activeCatalogProductObj = prod;
+    const form = document.getElementById('form-producto');
+    const title = document.getElementById('modal-producto-title');
+    const errorDiv = document.getElementById('producto-error');
+    
+    errorDiv.classList.add('hidden');
+    form.reset();
+
+    // 1. Cargar selectores dinámicos
+    await populateProductFormSelects();
+
+    if (prod) {
+        title.textContent = "Editar Producto";
+        
+        // Cargar campos básicos
+        document.getElementById('prod-nombre').value = prod.nombre;
+        document.getElementById('prod-unidad').value = prod.unidad_medida;
+        document.getElementById('prod-descripcion').value = prod.descripcion || '';
+        document.getElementById('prod-categoria').value = prod.categoria_id;
+        document.getElementById('prod-marca').value = prod.marca_id || '';
+        document.getElementById('prod-proveedor').value = prod.proveedor_id || '';
+        
+        // Precio (convertir centavos a pesos decimales)
+        document.getElementById('prod-precio').value = (prod.precio_venta_centavos / 100).toFixed(2);
+        
+        document.getElementById('prod-stock').value = prod.stock_actual;
+        document.getElementById('prod-stock-min').value = prod.stock_minimo;
+        document.getElementById('prod-imagen').value = prod.imagen_url || '';
+        document.getElementById('prod-activo').checked = prod.activo === 1;
+
+        // Cargar códigos de barras
+        state.editingProductBarcodes = [...prod.codigos_barras];
+    } else {
+        title.textContent = "Crear Producto";
+        state.editingProductBarcodes = [];
+    }
+
+    renderBarcodeChips();
+    showModal('modal-producto');
+}
+
+async function saveProduct(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('producto-error');
+    
+    const nombre = document.getElementById('prod-nombre').value.trim();
+    const unidad_medida = document.getElementById('prod-unidad').value;
+    const descripcion = document.getElementById('prod-descripcion').value.trim() || null;
+    const categoria_id = document.getElementById('prod-categoria').value;
+    const marca_id = document.getElementById('prod-marca').value || null;
+    const proveedor_id = document.getElementById('prod-proveedor').value || null;
+    
+    const precioPesos = parseFloat(document.getElementById('prod-precio').value) || 0;
+    const stock_actual = parseInt(document.getElementById('prod-stock').value) || 0;
+    const stock_minimo = parseInt(document.getElementById('prod-stock-min').value) || 0;
+    
+    const imagen_url = document.getElementById('prod-imagen').value.trim() || null;
+    const activo = document.getElementById('prod-activo').checked ? 1 : 0;
+
+    if (!nombre || !categoria_id || precioPesos <= 0) {
+        errorDiv.textContent = "El nombre, categoría y precio mayor a 0 son obligatorios.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    // Convertir precio a centavos
+    const precio_venta_centavos = Math.round(precioPesos * 100);
+
+    const payload = {
+        nombre,
+        descripcion,
+        categoria_id,
+        marca_id,
+        proveedor_id,
+        precio_venta_centavos,
+        stock_actual,
+        stock_minimo,
+        unidad_medida,
+        imagen_url,
+        activo,
+        codigos_barras: state.editingProductBarcodes
+    };
+
+    const method = activeCatalogProductObj ? 'PUT' : 'POST';
+    const endpoint = activeCatalogProductObj ? `/productos/${activeCatalogProductObj.id}` : '/productos';
+
+    try {
+        const response = await apiRequest(endpoint, {
+            method,
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast(activeCatalogProductObj ? "Producto actualizado correctamente" : "Producto creado correctamente", "success");
+            document.getElementById('modal-producto').classList.add('hidden');
+            
+            // 1. Recargar el catálogo
+            loadCatalogProducts();
+            
+            // 2. Refrescar listados del POS para que el cajero tenga stock y precios actualizados
+            await fetchProducts();
+            await fetchQuickAccesses();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Error al guardar el producto.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function deleteProduct(id, name) {
+    if (!confirm(`¿Está seguro que desea eliminar el producto "${name}"?`)) return;
+
+    try {
+        const response = await apiRequest(`/productos/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Producto eliminado con éxito", "success");
+            
+            // Recargar catálogo y POS
+            loadCatalogProducts();
+            await fetchProducts();
+            await fetchQuickAccesses();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se puede eliminar el producto. Cuenta con historial de ventas o inventario.");
+        }
+    } catch (e) {
+        playErrorSound();
+        showToast(e.message, "error");
+    }
+}
+
+// --- ACCESOS RÁPIDOS ---
+async function loadCatalogQuick(query = '') {
+    const tbody = document.getElementById('catalog-quick-body');
+    if (!tbody) return;
+
+    try {
+        const response = await apiRequest('/accesos-rapidos');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Traer productos para mostrar nombres reales
+            const prodRes = await apiRequest('/productos');
+            let products = [];
+            if (prodRes.ok) products = await prodRes.json();
+
+            // Filtrar localmente
+            const cleanQuery = query.toLowerCase().trim();
+            const filtered = data.filter(ar => {
+                const p = products.find(prod => prod.id === ar.producto_id);
+                const prodName = p ? p.nombre : '';
+                return prodName.toLowerCase().includes(cleanQuery) || ar.etiqueta.toLowerCase().includes(cleanQuery);
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No se encontraron accesos rápidos configurados.</td></tr>';
+                return;
+            }
+
+            // Ordenar por campo 'orden'
+            filtered.sort((a, b) => a.orden - b.orden);
+
+            tbody.innerHTML = '';
+            filtered.forEach(ar => {
+                const tr = document.createElement('tr');
+                const p = products.find(prod => prod.id === ar.producto_id);
+                const prodName = p ? p.nombre : 'Producto no encontrado';
+
+                const statusBadge = ar.activo === 1 
+                    ? '<span class="badge-status active">Activo</span>' 
+                    : '<span class="badge-status inactive">Inactivo</span>';
+
+                tr.innerHTML = `
+                    <td style="font-weight: 500;">${prodName}</td>
+                    <td style="font-family:var(--font-mono); font-weight:600; color:#38bdf8;">${ar.etiqueta}</td>
+                    <td class="text-center font-bold" style="font-family:var(--font-mono);">${ar.orden}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-center">
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm btn-edit-quick" data-id="${ar.id}">Editar</button>
+                            <button class="btn btn-danger-link btn-sm btn-delete-quick" data-id="${ar.id}">Eliminar</button>
+                        </div>
+                    </td>
+                `;
+
+                tr.querySelector('.btn-edit-quick').addEventListener('click', () => openQuickAccessModal(ar));
+                tr.querySelector('.btn-delete-quick').addEventListener('click', () => deleteQuickAccess(ar.id));
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        showToast("Error al cargar accesos rápidos", "error");
+    }
+}
+
+async function populateQuickAccessFormSelects() {
+    const select = document.getElementById('aq-producto');
+    select.innerHTML = '<option value="">Seleccione un producto</option>';
+
+    try {
+        const response = await apiRequest('/productos?activo=1');
+        if (response.ok) {
+            const products = await response.json();
+            products.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+            });
+        }
+    } catch (e) {
+        console.error("Error populating products in quick access modal:", e);
+    }
+}
+
+async function openQuickAccessModal(ar = null) {
+    activeCatalogQuickObj = ar;
+    const form = document.getElementById('form-acceso-rapido');
+    const title = document.getElementById('modal-acceso-rapido-title');
+    const errorDiv = document.getElementById('acceso-rapido-error');
+
+    errorDiv.classList.add('hidden');
+    form.reset();
+
+    // 1. Cargar select de productos
+    await populateQuickAccessFormSelects();
+
+    if (ar) {
+        title.textContent = "Editar Acceso Rápido";
+        document.getElementById('aq-producto').value = ar.producto_id;
+        document.getElementById('aq-etiqueta').value = ar.etiqueta;
+        document.getElementById('aq-orden').value = ar.orden;
+        document.getElementById('aq-activo').checked = ar.activo === 1;
+    } else {
+        title.textContent = "Configurar Acceso Rápido";
+        // Autopopular orden sugerido (siguiente libre)
+        try {
+            const res = await apiRequest('/accesos-rapidos');
+            if (res.ok) {
+                const list = await res.json();
+                const max = list.reduce((prev, current) => (prev.orden > current.orden) ? prev : current, { orden: 0 });
+                document.getElementById('aq-orden').value = max.orden + 1;
+            }
+        } catch (e) {
+            document.getElementById('aq-orden').value = 1;
+        }
+    }
+
+    showModal('modal-acceso-rapido');
+}
+
+async function saveQuickAccess(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('acceso-rapido-error');
+    
+    const producto_id = document.getElementById('aq-producto').value;
+    const etiqueta = document.getElementById('aq-etiqueta').value.trim();
+    const orden = parseInt(document.getElementById('aq-orden').value) || 0;
+    const activo = document.getElementById('aq-activo').checked ? 1 : 0;
+
+    if (!producto_id || !etiqueta || orden <= 0) {
+        errorDiv.textContent = "Todos los campos son obligatorios y el orden debe ser mayor a 0.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    const payload = { producto_id, etiqueta, orden, activo };
+    const method = activeCatalogQuickObj ? 'PUT' : 'POST';
+    const endpoint = activeCatalogQuickObj ? `/accesos-rapidos/${activeCatalogQuickObj.id}` : '/accesos-rapidos';
+
+    try {
+        const response = await apiRequest(endpoint, {
+            method,
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast(activeCatalogQuickObj ? "Acceso rápido actualizado correctamente" : "Acceso rápido configurado correctamente", "success");
+            document.getElementById('modal-acceso-rapido').classList.add('hidden');
+            
+            // Recargar catálogo y POS
+            loadCatalogQuick();
+            await fetchProducts();
+            await fetchQuickAccesses();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Error al configurar el acceso rápido. Valide que el orden de posición no esté duplicado.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function deleteQuickAccess(id) {
+    if (!confirm("¿Está seguro que desea eliminar este acceso rápido?")) return;
+
+    try {
+        const response = await apiRequest(`/accesos-rapidos/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Acceso rápido removido con éxito", "success");
+            
+            // Recargar catálogo y POS
+            loadCatalogQuick();
+            await fetchProducts();
+            await fetchQuickAccesses();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se pudo eliminar el acceso rápido.");
+        }
+    } catch (e) {
+        playErrorSound();
+        showToast(e.message, "error");
+    }
 }
 
 // ==========================================================================
@@ -990,6 +1974,103 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-logout').addEventListener('click', logout);
     document.getElementById('btn-vaciar-carrito').addEventListener('click', vaciarCarrito);
     document.getElementById('btn-cobrar').addEventListener('click', abrirCobroModal);
+
+    // --- ENLACES DE NAVEGACIÓN SIDEBAR ---
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const targetBtn = e.target.closest('.nav-item');
+            if (targetBtn) {
+                const viewId = targetBtn.getAttribute('data-view');
+                switchView(viewId);
+            }
+        });
+    });
+
+    // --- SUB-TABS CATÁLOGO ---
+    document.querySelectorAll('.subtab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const subtabId = e.target.closest('.subtab-btn').getAttribute('data-subtab');
+            switchCatalogSubtab(subtabId);
+        });
+    });
+
+    // --- ACCIONES ABRIR MODAL CATÁLOGO ---
+    document.getElementById('btn-add-product').addEventListener('click', () => openProductModal());
+    document.getElementById('btn-add-category').addEventListener('click', () => openCategoryModal());
+    document.getElementById('btn-add-brand').addEventListener('click', () => openBrandModal());
+    document.getElementById('btn-add-provider').addEventListener('click', () => openProviderModal());
+    document.getElementById('btn-add-quick').addEventListener('click', () => openQuickAccessModal());
+
+    // --- SUBMITS DE FORMULARIOS CATÁLOGO ---
+    document.getElementById('form-producto').addEventListener('submit', saveProduct);
+    document.getElementById('form-categoria').addEventListener('submit', saveCategory);
+    document.getElementById('form-marca').addEventListener('submit', saveBrand);
+    document.getElementById('form-proveedor').addEventListener('submit', saveProvider);
+    document.getElementById('form-acceso-rapido').addEventListener('submit', saveQuickAccess);
+
+    // --- AGREGAR CÓDIGO DE BARRAS EN FORM PRODUCTO ---
+    document.getElementById('btn-add-barcode-chip').addEventListener('click', () => {
+        const input = document.getElementById('prod-new-barcode');
+        addBarcodeChip(input.value);
+        input.value = '';
+    });
+    
+    document.getElementById('prod-new-barcode').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addBarcodeChip(e.target.value);
+            e.target.value = '';
+        }
+    });
+
+    // --- CANCELAR MODALES CATÁLOGO ---
+    document.querySelectorAll('.modal-cancel-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.modal-backdrop');
+            if (modal) modal.classList.add('hidden');
+        });
+    });
+
+    // --- BUSCADORES DINÁMICOS CATÁLOGO ---
+    let searchProductsTimeout;
+    document.getElementById('catalog-search-products').addEventListener('input', (e) => {
+        clearTimeout(searchProductsTimeout);
+        searchProductsTimeout = setTimeout(() => {
+            loadCatalogProducts(e.target.value);
+        }, 150);
+    });
+
+    let searchCategoriesTimeout;
+    document.getElementById('catalog-search-categories').addEventListener('input', (e) => {
+        clearTimeout(searchCategoriesTimeout);
+        searchCategoriesTimeout = setTimeout(() => {
+            loadCatalogCategories(e.target.value);
+        }, 150);
+    });
+
+    let searchBrandsTimeout;
+    document.getElementById('catalog-search-brands').addEventListener('input', (e) => {
+        clearTimeout(searchBrandsTimeout);
+        searchBrandsTimeout = setTimeout(() => {
+            loadCatalogBrands(e.target.value);
+        }, 150);
+    });
+
+    let searchProvidersTimeout;
+    document.getElementById('catalog-search-providers').addEventListener('input', (e) => {
+        clearTimeout(searchProvidersTimeout);
+        searchProvidersTimeout = setTimeout(() => {
+            loadCatalogProviders(e.target.value);
+        }, 150);
+    });
+
+    let searchQuickTimeout;
+    document.getElementById('catalog-search-quick').addEventListener('input', (e) => {
+        clearTimeout(searchQuickTimeout);
+        searchQuickTimeout = setTimeout(() => {
+            loadCatalogQuick(e.target.value);
+        }, 150);
+    });
 
     // Botón cancelar del modal cobro
     document.getElementById('btn-cancelar-cobro').addEventListener('click', () => {
