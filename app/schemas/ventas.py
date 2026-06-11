@@ -58,3 +58,29 @@ class VentaResponse(BaseModel):
     vuelto_centavos: int
     fecha: str
     detalles: List[VentaDetalleResponse] = []
+
+class AnulacionCreate(BaseModel):
+    motivo: Optional[str] = Field(None, description="Motivo de la anulación")
+
+class AnulacionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    venta_id: str
+    usuario_id: str
+    motivo: Optional[str]
+    fecha: str
+
+class DevolucionCreate(BaseModel):
+    motivo: Optional[str] = Field(None, description="Motivo de la devolución")
+
+class DevolucionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    venta_id: str
+    usuario_id: str
+    monto_devuelto_centavos: int
+    motivo: Optional[str]
+    fecha: str
+
