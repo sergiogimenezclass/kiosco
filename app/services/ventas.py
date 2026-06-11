@@ -138,7 +138,10 @@ class VentasService:
         fecha_utc = datetime.datetime.now(datetime.timezone.utc).isoformat()
         
         try:
-            # Procesar detalles, actualizar stock y registrar movimientos
+            # 1. Guardar cabecera de la venta primero para evitar fallos de clave foránea
+            VentasRepository.create_venta(db, venta_in, usuario_id, id_venta, fecha_utc)
+
+            # 2. Procesar detalles, actualizar stock y registrar movimientos
             for item, prod in detalles_productos:
                 id_detalle = uuid.uuid4().hex
                 # Guardar detalle
@@ -164,9 +167,6 @@ class VentasService:
                     id_venta,
                     fecha_utc
                 )
-            
-            # Guardar cabecera de la venta
-            VentasRepository.create_venta(db, venta_in, usuario_id, id_venta, fecha_utc)
             
             # Recuperar y retornar la venta completa registrada
             venta_guardada = VentasRepository.get_venta_by_id(db, id_venta)
