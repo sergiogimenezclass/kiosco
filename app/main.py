@@ -30,6 +30,7 @@ from app.routers.caja import (
 )
 from app.routers.ventas import router as ventas_router
 from app.routers.stock import router as stock_router
+from app.routers.reports import router as reports_router
 
 # Setup basic logging configuration
 logging.basicConfig(
@@ -86,6 +87,7 @@ app.include_router(cajas_router, prefix=f"{settings.API_PREFIX}/cajas")
 app.include_router(movimientos_caja_router, prefix=f"{settings.API_PREFIX}/movimientos-caja")
 app.include_router(ventas_router, prefix=f"{settings.API_PREFIX}/ventas")
 app.include_router(stock_router, prefix=f"{settings.API_PREFIX}/stock")
+app.include_router(reports_router, prefix=f"{settings.API_PREFIX}/reportes")
 
 # Serve static files and redirect root
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
