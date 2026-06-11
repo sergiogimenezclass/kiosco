@@ -16,7 +16,7 @@ class StockAjusteCreate(BaseModel):
 
 class StockIngresoCreate(BaseModel):
     producto_id: str = Field(..., min_length=1, description="ID del producto a ingresar")
-    cantidad: int = Field(..., gt=0, description="Cantidad a ingresar, debe ser mayor a cero")
+    cantidad: int = Field(..., description="Cantidad a ingresar, debe ser mayor a cero")
     proveedor_id: str = Field(..., min_length=1, description="ID del proveedor obligatorio")
     motivo: str = Field(..., min_length=1, description="Motivo del ingreso de stock")
 
