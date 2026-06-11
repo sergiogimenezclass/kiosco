@@ -812,7 +812,7 @@ function recalcularVuelto() {
     }
 }
 
-// Simular el cobro de la venta (Compatibilidad Fase 6)
+// Registrar el cobro de la venta contra el backend
 async function procesarPago() {
     const totals = calculateCartTotals();
     const receivedInput = document.getElementById('cobro-recibido');
@@ -830,7 +830,8 @@ async function procesarPago() {
         detalles: state.cart.map(item => ({
             producto_id: item.product.id,
             cantidad: item.cantidad,
-            precio_unitario_centavos: item.product.precio_venta_centavos
+            precio_unitario_centavos: item.product.precio_venta_centavos,
+            descuento_centavos: 0
         }))
     };
 
@@ -838,7 +839,6 @@ async function procesarPago() {
     confirmBtn.disabled = true;
 
     try {
-        // Intentar registrar la venta contra el endpoint (que se desarrollará en la Fase 6)
         const response = await apiRequest('/ventas', {
             method: 'POST',
             body: JSON.stringify(payload)
@@ -846,25 +846,16 @@ async function procesarPago() {
 
         if (response.ok) {
             const data = await response.json();
-            completarFlujoPago(data.vuelto_centavos);
-        } else if (response.status === 404) {
-            // FALLBACK SIMULATION: Si no está implementado /ventas (Fase 6), simulamos éxito local
-            console.warn("POST /api/ventas no disponible (Esperado en Fase 6). Procediendo con simulación local.");
             
-            // Simular descuento de stock localmente
-            state.cart.forEach(item => {
-                const prod = state.products.find(p => p.id === item.product.id);
-                if (prod) {
-                    prod.stock_actual = Math.max(0, prod.stock_actual - item.cantidad);
-                }
-            });
-
-            // Forzar recarga de grillas de búsqueda
+            // Actualizar catálogo de productos en memoria para refrescar stocks
+            await fetchProducts();
+            
+            // Refrescar grillas visuales de productos
             const searchInput = document.getElementById('search-input');
             filterResults(searchInput.value);
             renderQuickAccessGrid();
 
-            completarFlujoPago(payload.vuelto_centavos, true);
+            completarFlujoPago(data.vuelto_centavos);
         } else {
             const err = await response.json();
             throw new Error(err.error?.message || "Error al procesar el cobro");
@@ -878,14 +869,11 @@ async function procesarPago() {
     }
 }
 
-function completarFlujoPago(vueltoCents, simulated = false) {
+function completarFlujoPago(vueltoCents) {
     playSuccessSound();
     
-    const msg = simulated 
-        ? `¡Venta Simulada con Éxito!\nVuelto a entregar: ${formatMoney(vueltoCents)}` 
-        : `¡Venta Registrada con Éxito!\nVuelto a entregar: ${formatMoney(vueltoCents)}`;
-        
-    alert(msg);
+    const msg = `¡Venta Registrada con Éxito!\nVuelto a entregar: ${formatMoney(vueltoCents)}`;
+    showToast(msg, 'success');
     
     // Limpiar carrito
     vaciarCarritoSinConfirmar();
