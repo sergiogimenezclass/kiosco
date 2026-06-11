@@ -4,13 +4,13 @@
 
 ## Fase 1 - Base técnica
 
-- Crear proyecto FastAPI.
-- Configurar SQLite.
-- Aplicar PRAGMAs.
-- Crear schema.sql.
-- Crear conexión DB.
-- Crear estructura Controller/Service/Repository.
-- Configurar manejo estándar de errores.
+- [x] Crear proyecto FastAPI.
+- [x] Configurar SQLite.
+- [x] Aplicar PRAGMAs.
+- [x] Crear schema.sql.
+- [x] Crear conexión DB.
+- [x] Crear estructura Controller/Service/Repository.
+- [x] Configurar manejo estándar de errores.
 
 ## Fase 2 - Autenticación y roles
 
