@@ -121,7 +121,7 @@ def test_reports_generation_and_calculations(admin_token, supervisor_token):
         json={"monto_inicial_centavos": 5000}, # $50.00
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert resp_apertura.status_code == 200
+    assert resp_apertura.status_code == 201
     caja_id = resp_apertura.json()["id"]
 
     # 3. Movimientos de Caja: Ingreso de $10 y Retiro de $5
@@ -155,7 +155,7 @@ def test_reports_generation_and_calculations(admin_token, supervisor_token):
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert resp_venta_1.status_code == 200
+    assert resp_venta_1.status_code == 201
     venta_1_id = resp_venta_1.json()["id"]
 
     # Venta 2: Completada Digital (Subtotal $20.00, Descuento $2.00, Total $18.00)
@@ -176,7 +176,7 @@ def test_reports_generation_and_calculations(admin_token, supervisor_token):
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
-    assert resp_venta_2.status_code == 200
+    assert resp_venta_2.status_code == 201
 
     # Venta 3: Venta que será ANULADA
     resp_venta_3 = client.post(
@@ -196,6 +196,7 @@ def test_reports_generation_and_calculations(admin_token, supervisor_token):
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
+    assert resp_venta_3.status_code == 201
     venta_3_id = resp_venta_3.json()["id"]
 
     # Anular Venta 3
@@ -224,6 +225,7 @@ def test_reports_generation_and_calculations(admin_token, supervisor_token):
         },
         headers={"Authorization": f"Bearer {admin_token}"}
     )
+    assert resp_venta_4.status_code == 201
     venta_4_id = resp_venta_4.json()["id"]
 
     # Devolver Venta 4
