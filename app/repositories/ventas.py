@@ -1,0 +1,215 @@
+import sqlite3
+import uuid
+import datetime
+from typing import Optional, List, Dict, Any
+from app.core.errors import KioskException
+from app.schemas.ventas import VentaCreate, VentaDetalleCreate
+
+class VentasRepository:
+    @staticmethod
+    def create_venta(
+        conn: sqlite3.Connection,
+        venta: VentaCreate,
+        usuario_id: str,
+        id_venta: str,
+        fecha: str
+    ) -> Dict[str, Any]:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO ventas (
+                    id, caja_id, usuario_id, estado, metodo_pago, subtotal_centavos,
+                    descuento_items_centavos, descuento_venta_centavos, total_centavos,
+                    monto_recibido_centavos, vuelto_centavos, fecha
+                ) VALUES (?, ?, ?, 'COMPLETADA', ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    id_venta,
+                    venta.caja_id,
+                    usuario_id,
+                    venta.metodo_pago.value,
+                    venta.subtotal_centavos,
+                    venta.descuento_items_centavos,
+                    venta.descuento_venta_centavos,
+                    venta.total_centavos,
+                    venta.monto_recibido_centavos,
+                    venta.vuelto_centavos,
+                    fecha
+                )
+            )
+            return {
+                "id": id_venta,
+                "caja_id": venta.caja_id,
+                "usuario_id": usuario_id,
+                "estado": "COMPLETADA",
+                "metodo_pago": venta.metodo_pago.value,
+                "subtotal_centavos": venta.subtotal_centavos,
+                "descuento_items_centavos": venta.descuento_items_centavos,
+                "descuento_venta_centavos": venta.descuento_venta_centavos,
+                "total_centavos": venta.total_centavos,
+                "monto_recibido_centavos": venta.monto_recibido_centavos,
+                "vuelto_centavos": venta.vuelto_centavos,
+                "fecha": fecha
+            }
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al registrar la cabecera de venta: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def create_venta_detalle(
+        conn: sqlite3.Connection,
+        detalle: VentaDetalleCreate,
+        venta_id: str,
+        id_detalle: str,
+        nombre_snap: str,
+        unidad_snap: str
+    ) -> Dict[str, Any]:
+        cursor = conn.cursor()
+        subtotal = detalle.precio_unitario_centavos * detalle.cantidad
+        # El descuento en detalle es el descuento sobre la línea completa
+        total_linea = subtotal - detalle.descuento_centavos
+        try:
+            cursor.execute(
+                """
+                INSERT INTO venta_detalles (
+                    id, venta_id, producto_id, nombre_producto_snapshot, cantidad,
+                    unidad_medida_snapshot, precio_unitario_centavos, descuento_centavos,
+                    subtotal_centavos, total_linea_centavos
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    id_detalle,
+                    venta_id,
+                    detalle.producto_id,
+                    nombre_snap,
+                    detalle.cantidad,
+                    unidad_snap,
+                    detalle.precio_unitario_centavos,
+                    detalle.descuento_centavos,
+                    subtotal,
+                    total_linea
+                )
+            )
+            return {
+                "id": id_detalle,
+                "venta_id": venta_id,
+                "producto_id": detalle.producto_id,
+                "nombre_producto_snapshot": nombre_snap,
+                "cantidad": detalle.cantidad,
+                "unidad_medida_snapshot": unidad_snap,
+                "precio_unitario_centavos": detalle.precio_unitario_centavos,
+                "descuento_centavos": detalle.descuento_centavos,
+                "subtotal_centavos": subtotal,
+                "total_linea_centavos": total_linea
+            }
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al guardar el detalle de venta: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def descontar_stock_producto(
+        conn: sqlite3.Connection,
+        producto_id: str,
+        cantidad: int
+    ) -> None:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE productos SET stock_actual = stock_actual - ?, updated_at = ? WHERE id = ?;",
+                (cantidad, datetime.datetime.now(datetime.timezone.utc).isoformat(), producto_id)
+            )
+            if cursor.rowcount == 0:
+                raise KioskException(
+                    code="PRODUCT_NOT_FOUND",
+                    message="El producto no existe o no se pudo actualizar",
+                    status_code=404
+                )
+        except sqlite3.IntegrityError as e:
+            if "CHECK constraint failed" in str(e) or "stock_actual" in str(e):
+                raise KioskException(
+                    code="INSUFFICIENT_STOCK",
+                    message="El stock del producto no es suficiente para realizar la venta",
+                    status_code=400
+                )
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al actualizar el stock: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def registrar_movimiento_stock(
+        conn: sqlite3.Connection,
+        prod_id: str,
+        user_id: str,
+        cantidad: int,
+        stock_ant: int,
+        stock_nue: int,
+        ref_id: str,
+        fecha: str
+    ) -> None:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                """
+                INSERT INTO movimientos_stock (
+                    id, producto_id, usuario_id, tipo, cantidad, stock_anterior, stock_nuevo,
+                    referencia_tipo, referencia_id, motivo, fecha
+                ) VALUES (?, ?, ?, 'VENTA', ?, ?, ?, 'VENTA', ?, ?, ?);
+                """,
+                (
+                    uuid.uuid4().hex,
+                    prod_id,
+                    user_id,
+                    -cantidad, # Salida de stock como valor negativo
+                    stock_ant,
+                    stock_nue,
+                    ref_id,
+                    "Venta POS",
+                    fecha
+                )
+            )
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al registrar movimiento de stock: {str(e)}",
+                status_code=500
+            )
+
+    @staticmethod
+    def get_venta_by_id(conn: sqlite3.Connection, venta_id: str) -> Optional[Dict[str, Any]]:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT id, caja_id, usuario_id, estado, metodo_pago, subtotal_centavos,
+                   descuento_items_centavos, descuento_venta_centavos, total_centavos,
+                   monto_recibido_centavos, vuelto_centavos, fecha
+            FROM ventas WHERE id = ?;
+            """,
+            (venta_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        
+        venta = dict(row)
+        
+        # Obtener los detalles
+        cursor.execute(
+            """
+            SELECT id, venta_id, producto_id, nombre_producto_snapshot, cantidad,
+                   unidad_medida_snapshot, precio_unitario_centavos, descuento_centavos,
+                   subtotal_centavos, total_linea_centavos
+            FROM venta_detalles WHERE venta_id = ?;
+            """,
+            (venta_id,)
+        )
+        venta["detalles"] = [dict(r) for r in cursor.fetchall()]
+        return venta
