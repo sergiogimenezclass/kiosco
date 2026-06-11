@@ -1621,3 +1621,23 @@ input:focus, button:focus {
     justify-content: flex-end;
     gap: 12px;
 }
+
+/* ESTILOS DE BADGES DE ROL */
+.badge-role.admin {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.badge-role.supervisor {
+    background-color: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.3);
+}
+
+.badge-role.cajero {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+

@@ -384,14 +384,37 @@
                     </div>
                 </section>
 
-                <!-- VISTA 6: USUARIOS (PLACEHOLDER) -->
+                <!-- VISTA 6: USUARIOS -->
                 <section id="view-users" class="view-panel hidden">
-                    <div class="placeholder-view">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        <h2>Módulo Usuarios</h2>
-                        <p>El panel de administración y control de accesos de usuarios se encuentra en desarrollo.</p>
+                    <div class="catalog-section">
+                        <div class="catalog-header-actions">
+                            <div class="catalog-search-box">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" id="users-search" placeholder="Buscar por nombre o usuario...">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="btn-add-user">
+                                <span>+ Nuevo Usuario</span>
+                            </button>
+                        </div>
+                        <div class="table-responsive catalog-table-wrapper">
+                            <table class="catalog-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre Completo</th>
+                                        <th>Nombre de Usuario</th>
+                                        <th>Rol</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- JS dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
+
             </div>
         </div>
     </div>
@@ -799,7 +822,75 @@
         </div>
     </div>
 
+    <!-- MODAL 11: USUARIO -->
+    <div id="modal-user" class="modal-backdrop hidden">
+        <div class="modal-card modal-sm animate-scale">
+            <div class="modal-header">
+                <h2 id="modal-user-title">Crear Usuario</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-user" class="modal-form">
+                <div class="form-group">
+                    <label for="user-nombre">Nombre Completo (*)</label>
+                    <input type="text" id="user-nombre" required placeholder="Ej. Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label for="user-username">Nombre de Usuario (*)</label>
+                    <input type="text" id="user-username" required placeholder="Ej. juan_perez">
+                    <small style="color: var(--color-text-muted); font-size: 0.72rem; margin-top: 2px;">Min. 3 caracteres. Solo alfanuméricos, guión o guión bajo.</small>
+                </div>
+                <div class="form-group" id="user-password-container">
+                    <label for="user-password">Contraseña (*)</label>
+                    <input type="password" id="user-password" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="user-rol">Rol (*)</label>
+                    <select id="user-rol" required class="select-modern">
+                        <option value="">Seleccione un Rol</option>
+                        <option value="ADMINISTRADOR">Administrador</option>
+                        <option value="SUPERVISOR">Supervisor</option>
+                        <option value="CAJERO">Cajero</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Estado</label>
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" id="user-activo" checked>
+                        <label for="user-activo">Usuario Activo</label>
+                    </div>
+                </div>
+                <div id="user-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 12: CAMBIAR CONTRASEÑA -->
+    <div id="modal-change-password" class="modal-backdrop hidden">
+        <div class="modal-card modal-sm animate-scale">
+            <div class="modal-header">
+                <h2>Cambiar Contraseña</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-change-password" class="modal-form">
+                <div class="form-group">
+                    <label for="change-password-input">Nueva Contraseña (*)</label>
+                    <input type="password" id="change-password-input" required placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+                </div>
+                <div id="change-password-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Actualizar Contraseña</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- TOAST NOTIFICATIONS CONTAINER -->
+
     <div id="toast-container" class="toast-container"></div>
 
     <!-- AUDIO ELEMENT FOR ERROR/WARNING -->

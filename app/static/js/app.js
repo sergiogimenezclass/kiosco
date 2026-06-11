@@ -282,6 +282,11 @@ function switchView(viewId) {
         if (viewId === 'view-catalog') {
             switchCatalogSubtab(state.currentCatalogSubtab || 'catalog-products');
         }
+        
+        // Inicializar datos si vamos al panel de Usuarios
+        if (viewId === 'view-users') {
+            loadUsers();
+        }
     }
 
     state.currentView = viewId;
@@ -311,8 +316,18 @@ function setupNavigationPermissions() {
         if (navReports) navReports.classList.add('hidden');
         if (navUsers) navUsers.classList.add('hidden');
     } else if (rol === 'SUPERVISOR') {
-        // El supervisor no puede ver administración de usuarios
-        if (navUsers) navUsers.classList.add('hidden');
+        // El supervisor no puede administrar usuarios, pero sí ver la lista de personal (solo lectura)
+        // Por lo tanto, no ocultamos navUsers.
+    }
+    
+    // Controlar visibilidad del botón "+ Nuevo Usuario" en base al rol (solo administrador)
+    const btnAddUser = document.getElementById('btn-add-user');
+    if (btnAddUser) {
+        if (rol === 'ADMINISTRADOR') {
+            btnAddUser.classList.remove('hidden');
+        } else {
+            btnAddUser.classList.add('hidden');
+        }
     }
     
     // Iniciar siempre en la vista de Ventas (POS)
@@ -1217,7 +1232,237 @@ async function deleteQuickAccess(id) {
 }
 
 // ==========================================================================
+// GESTIÓN DE USUARIOS (ABM)
+// ==========================================================================
+
+let activeUserObj = null;
+let changePasswordUserId = null;
+
+async function loadUsers(query = '') {
+    const tbody = document.getElementById('users-table-body');
+    if (!tbody) return;
+
+    try {
+        const response = await apiRequest('/users');
+        if (response.ok) {
+            const data = await response.json();
+            
+            // Filtrar localmente por nombre o usuario
+            const cleanQuery = query.toLowerCase().trim();
+            const filtered = data.filter(u => 
+                u.nombre.toLowerCase().includes(cleanQuery) ||
+                u.username.toLowerCase().includes(cleanQuery)
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No se encontraron usuarios.</td></tr>';
+                return;
+            }
+
+            // Ordenar por nombre
+            filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            tbody.innerHTML = '';
+            filtered.forEach(u => {
+                const tr = document.createElement('tr');
+                
+                // Active Badge
+                const statusBadge = u.activo === 1 
+                    ? '<span class="badge-status active">Activo</span>' 
+                    : '<span class="badge-status inactive">Inactivo</span>';
+
+                // Role Badge
+                let roleClass = 'cajero';
+                if (u.rol === 'ADMINISTRADOR') roleClass = 'admin';
+                else if (u.rol === 'SUPERVISOR') roleClass = 'supervisor';
+
+                const roleBadge = `<span class="badge-role ${roleClass}">${u.rol}</span>`;
+
+                // Render actions based on role permissions
+                const isCurrentLogged = state.user && state.user.id === u.id;
+                const isAdmin = state.user && state.user.rol === 'ADMINISTRADOR';
+
+                let actionButtons = '';
+                let disableDeactivate = isCurrentLogged || u.activo === 0;
+                
+                if (isAdmin) {
+                    actionButtons = `
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary btn-sm btn-change-pwd" data-id="${u.id}">Contraseña</button>
+                            <button class="btn btn-danger-link btn-sm btn-deactivate-user" data-id="${u.id}" ${disableDeactivate ? 'disabled style="opacity: 0.4; cursor: not-allowed;"' : ''}>Desactivar</button>
+                        </div>
+                    `;
+                } else {
+                    actionButtons = `<span class="text-muted" style="font-size:0.8rem;">Solo lectura</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td style="font-weight: 600;">${u.nombre} ${isCurrentLogged ? '<span class="text-muted" style="font-weight:normal; font-size:0.75rem;">(Tú)</span>' : ''}</td>
+                    <td style="font-family: var(--font-mono); font-size: 0.85rem;">${u.username}</td>
+                    <td>${roleBadge}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-center">${actionButtons}</td>
+                `;
+
+                if (isAdmin) {
+                    tr.querySelector('.btn-change-pwd').addEventListener('click', () => openChangePasswordModal(u.id));
+                    if (!disableDeactivate) {
+                        tr.querySelector('.btn-deactivate-user').addEventListener('click', () => deactivateUser(u.id, u.nombre));
+                    }
+                }
+
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        showToast("Error al cargar listado de usuarios", "error");
+    }
+}
+
+function openUserModal() {
+    activeUserObj = null;
+    const form = document.getElementById('form-user');
+    const title = document.getElementById('modal-user-title');
+    const pwdContainer = document.getElementById('user-password-container');
+    const errorDiv = document.getElementById('user-error');
+    
+    errorDiv.classList.add('hidden');
+    form.reset();
+    
+    // Al crear un usuario, la contraseña es obligatoria
+    pwdContainer.style.display = 'block';
+    document.getElementById('user-password').setAttribute('required', 'true');
+    document.getElementById('user-username').removeAttribute('readonly');
+
+    title.textContent = "Crear Usuario";
+    showModal('modal-user');
+}
+
+async function saveUser(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('user-error');
+    
+    const nombre = document.getElementById('user-nombre').value.trim();
+    const username = document.getElementById('user-username').value.trim().toLowerCase();
+    const password = document.getElementById('user-password').value;
+    const rol = document.getElementById('user-rol').value;
+    const activo = document.getElementById('user-activo').checked ? 1 : 0;
+
+    if (!nombre || !username || !password || !rol) {
+        errorDiv.textContent = "Todos los campos con (*) son obligatorios.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    if (password.length < 6) {
+        errorDiv.textContent = "La contraseña debe tener al menos 6 caracteres.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    // Validación de username para evitar caracteres no soportados por backend
+    const usernameRegex = /^[a-z0-9_-]+$/;
+    if (!usernameRegex.test(username)) {
+        errorDiv.textContent = "El usuario solo debe contener minúsculas, números, guiones (-) o guiones bajos (_).";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    const payload = {
+        nombre,
+        username,
+        password,
+        rol,
+        activo
+    };
+
+    try {
+        const response = await apiRequest('/users', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Usuario creado correctamente", "success");
+            document.getElementById('modal-user').classList.add('hidden');
+            loadUsers();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "Error al crear el usuario. Verifique si el nombre de usuario ya existe.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+function openChangePasswordModal(userId) {
+    changePasswordUserId = userId;
+    const form = document.getElementById('form-change-password');
+    const errorDiv = document.getElementById('change-password-error');
+    errorDiv.classList.add('hidden');
+    form.reset();
+
+    showModal('modal-change-password');
+}
+
+async function saveChangePassword(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('change-password-error');
+    const password = document.getElementById('change-password-input').value;
+
+    if (!password || password.length < 6) {
+        errorDiv.textContent = "La contraseña debe tener al menos 6 caracteres.";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const response = await apiRequest(`/users/${changePasswordUserId}/password`, {
+            method: 'PATCH',
+            body: JSON.stringify({ password })
+        });
+
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Contraseña actualizada exitosamente", "success");
+            document.getElementById('modal-change-password').classList.add('hidden');
+            loadUsers();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se pudo actualizar la contraseña.");
+        }
+    } catch (e) {
+        playErrorSound();
+        errorDiv.textContent = e.message;
+        errorDiv.classList.remove('hidden');
+    }
+}
+
+async function deactivateUser(userId, name) {
+    if (!confirm(`¿Está seguro que desea desactivar al usuario "${name}"? Esta acción no impedirá que conserve su historial, pero no podrá iniciar sesión.`)) return;
+
+    try {
+        const response = await apiRequest(`/users/${userId}/desactivar`, { method: 'PATCH' });
+        if (response.ok) {
+            playSuccessSound();
+            showToast("Usuario desactivado exitosamente", "success");
+            loadUsers();
+        } else {
+            const err = await response.json();
+            throw new Error(err.error?.message || "No se pudo desactivar al usuario.");
+        }
+    } catch (e) {
+        playErrorSound();
+        showToast(e.message, "error");
+    }
+}
+
+// ==========================================================================
 // CICLO DE VIDA DE CAJA
+
 // ==========================================================================
 
 async function checkCajaStatus() {
@@ -2071,6 +2316,33 @@ document.addEventListener('DOMContentLoaded', () => {
             loadCatalogQuick(e.target.value);
         }, 150);
     });
+
+    // --- ACCIONES GESTIÓN DE USUARIOS ---
+    const btnAddUser = document.getElementById('btn-add-user');
+    if (btnAddUser) {
+        btnAddUser.addEventListener('click', openUserModal);
+    }
+
+    const formUser = document.getElementById('form-user');
+    if (formUser) {
+        formUser.addEventListener('submit', saveUser);
+    }
+
+    const formChangePassword = document.getElementById('form-change-password');
+    if (formChangePassword) {
+        formChangePassword.addEventListener('submit', saveChangePassword);
+    }
+
+    const usersSearch = document.getElementById('users-search');
+    if (usersSearch) {
+        let searchUsersTimeout;
+        usersSearch.addEventListener('input', (e) => {
+            clearTimeout(searchUsersTimeout);
+            searchUsersTimeout = setTimeout(() => {
+                loadUsers(e.target.value);
+            }, 150);
+        });
+    }
 
     // Botón cancelar del modal cobro
     document.getElementById('btn-cancelar-cobro').addEventListener('click', () => {
