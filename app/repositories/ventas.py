@@ -373,3 +373,66 @@ class VentasRepository:
                 status_code=500
             )
 
+    @staticmethod
+    def get_all_ventas(
+        conn: sqlite3.Connection,
+        desde: Optional[str] = None,
+        hasta: Optional[str] = None,
+        caja_id: Optional[str] = None,
+        usuario_id: Optional[str] = None,
+        estado: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        cursor = conn.cursor()
+        query = """
+            SELECT id, caja_id, usuario_id, estado, metodo_pago, subtotal_centavos,
+                   descuento_items_centavos, descuento_venta_centavos, total_centavos,
+                   monto_recibido_centavos, vuelto_centavos, fecha
+            FROM ventas
+            WHERE 1=1
+        """
+        params = []
+        if desde:
+            query += " AND fecha >= ?"
+            params.append(desde + "T00:00:00")
+        if hasta:
+            query += " AND fecha <= ?"
+            params.append(hasta + "T23:59:59.999999")
+        if caja_id:
+            query += " AND caja_id = ?"
+            params.append(caja_id)
+        if usuario_id:
+            query += " AND usuario_id = ?"
+            params.append(usuario_id)
+        if estado:
+            query += " AND estado = ?"
+            params.append(estado)
+
+        query += " ORDER BY fecha DESC;"
+        
+        try:
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            
+            ventas = []
+            for r in rows:
+                v = dict(r)
+                cursor.execute(
+                    """
+                    SELECT id, venta_id, producto_id, nombre_producto_snapshot, cantidad,
+                           unidad_medida_snapshot, precio_unitario_centavos, descuento_centavos,
+                           subtotal_centavos, total_linea_centavos
+                    FROM venta_detalles WHERE venta_id = ?;
+                    """,
+                    (v["id"],)
+                )
+                v["detalles"] = [dict(dt) for dt in cursor.fetchall()]
+                ventas.append(v)
+            return ventas
+        except sqlite3.Error as e:
+            raise KioskException(
+                code="DATABASE_ERROR",
+                message=f"Error al listar las ventas de la base de datos: {str(e)}",
+                status_code=500
+            )
+
+

@@ -528,3 +528,20 @@ def test_annulments_and_refunds(admin_token, supervisor_token, cashier_token):
         cursor.execute("DELETE FROM productos WHERE id = ?;", (prod_id,))
         cursor.execute("DELETE FROM categorias WHERE id = ?;", (cat_id,))
         conn.commit()
+
+
+def test_list_sales_endpoint(admin_token, supervisor_token, cashier_token):
+    # 1. Access as Cashier -> should fail with 403
+    resp = client.get("/api/ventas", headers={"Authorization": f"Bearer {cashier_token}"})
+    assert resp.status_code == 403
+
+    # 2. Access as Supervisor -> should succeed with 200
+    resp_sup = client.get("/api/ventas", headers={"Authorization": f"Bearer {supervisor_token}"})
+    assert resp_sup.status_code == 200
+    assert isinstance(resp_sup.json(), list)
+
+    # 3. Access as Admin -> should succeed with 200
+    resp_adm = client.get("/api/ventas", headers={"Authorization": f"Bearer {admin_token}"})
+    assert resp_adm.status_code == 200
+    assert isinstance(resp_adm.json(), list)
+

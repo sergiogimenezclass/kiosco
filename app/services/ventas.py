@@ -1,7 +1,7 @@
 import sqlite3
 import uuid
 import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from app.core.errors import KioskException
 from app.schemas.ventas import VentaCreate, VentaResponse, AnulacionCreate, DevolucionCreate
 from app.repositories.ventas import VentasRepository
@@ -346,3 +346,15 @@ class VentasService:
             
         except Exception as e:
             raise e
+
+    @staticmethod
+    def listar_ventas(
+        db: sqlite3.Connection,
+        desde: Optional[str] = None,
+        hasta: Optional[str] = None,
+        caja_id: Optional[str] = None,
+        usuario_id: Optional[str] = None,
+        estado: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        return VentasRepository.get_all_ventas(db, desde, hasta, caja_id, usuario_id, estado)
+
