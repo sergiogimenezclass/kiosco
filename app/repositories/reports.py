@@ -93,6 +93,23 @@ class ReportsRepository:
         cantidad_devoluciones = res_devoluciones["cantidad_devoluciones"]
         total_devuelto = res_devoluciones["total_devuelto_centavos"]
 
+        # 7. Ventas diarias (diario)
+        query_diario = f"""
+            SELECT 
+                strftime('%Y-%m-%d', fecha) as fecha,
+                COUNT(*) as cantidad_ventas,
+                COALESCE(SUM(subtotal_centavos), 0) as subtotal_centavos,
+                COALESCE(SUM(descuento_items_centavos + descuento_venta_centavos), 0) as descuentos_centavos,
+                COALESCE(SUM(total_centavos), 0) as total_neto_centavos
+            FROM ventas
+            WHERE estado = 'COMPLETADA'{date_filter_venta}
+            GROUP BY strftime('%Y-%m-%d', fecha)
+            ORDER BY fecha ASC;
+        """
+        cursor.execute(query_diario, params)
+        res_diario = cursor.fetchall()
+        diario = [dict(row) for row in res_diario]
+
         return {
             "total_general_centavos": total_general,
             "cantidad_ventas": cantidad_ventas,
@@ -102,7 +119,8 @@ class ReportsRepository:
             "cantidad_anulaciones": cantidad_anulaciones,
             "total_anulado_centavos": total_anulado,
             "cantidad_devoluciones": cantidad_devoluciones,
-            "total_devuelto_centavos": total_devuelto
+            "total_devuelto_centavos": total_devuelto,
+            "diario": diario
         }
 
     @staticmethod

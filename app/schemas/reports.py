@@ -12,6 +12,13 @@ class VentasPorMetodoPago(BaseModel):
     total_centavos: int
     cantidad_ventas: int
 
+class VentaDiariaItem(BaseModel):
+    fecha: str
+    cantidad_ventas: int
+    subtotal_centavos: int
+    descuentos_centavos: int
+    total_neto_centavos: int
+
 class VentasDiariasResponse(BaseModel):
     total_general_centavos: int
     cantidad_ventas: int
@@ -22,6 +29,7 @@ class VentasDiariasResponse(BaseModel):
     total_anulado_centavos: int
     cantidad_devoluciones: int
     total_devuelto_centavos: int
+    diario: List[VentaDiariaItem]
 
 class CajaReportItem(BaseModel):
     id: str
