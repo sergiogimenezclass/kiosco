@@ -201,8 +201,9 @@ input:focus, button:focus {
    MAQUETACIÓN CONTENIDO POS (Alta densidad sin scroll global)
    ========================================================================== */
 
-.pos-layout {
+.view-panel.pos-layout {
     display: flex;
+    flex-direction: row;
     flex: 1;
     overflow: hidden;
     width: 100%;
@@ -487,10 +488,9 @@ input:focus, button:focus {
 }
 
 .cart-item {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: center;
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     padding: 10px 12px;
     border-bottom: 1px solid var(--color-border);
     transition: background-color 0.1s ease;
@@ -500,31 +500,40 @@ input:focus, button:focus {
     background-color: rgba(30, 41, 59, 0.4);
 }
 
-.cart-item-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+.cart-item-title-row {
+    width: 100%;
 }
 
 .cart-item-name {
-    font-size: 0.85rem;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.25;
+}
+
+.cart-item-details-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
 }
 
 .cart-item-meta {
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     color: var(--color-text-muted);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
+    min-width: 80px;
 }
 
 .cart-item-price {
     font-family: var(--font-mono);
+    font-weight: 500;
+    color: var(--color-text-secondary);
 }
 
 .cart-item-qty {
@@ -575,15 +584,16 @@ input:focus, button:focus {
 .cart-item-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 
 .cart-item-subtotal {
     font-family: var(--font-mono);
     font-weight: 600;
-    font-size: 0.85rem;
-    width: 65px;
+    font-size: 0.9rem;
+    width: 70px;
     text-align: right;
+    color: #38bdf8; /* light blue highlight for subtotals */
 }
 
 /* ==========================================================================
@@ -1639,5 +1649,59 @@ input:focus, button:focus {
     background-color: rgba(16, 185, 129, 0.15);
     color: #34d399;
     border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* ESTILOS DE BADGES DE ESTADO DE VENTAS */
+.badge-status.completada {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-status.anulada {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-status.devuelta {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* ESTILOS DE REPORTES Y MÉTRICAS */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.metric-card {
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    padding: 20px;
+    border-radius: 8px;
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.discrepancia-ok {
+    color: #4ade80;
+    font-weight: 600;
+}
+
+.discrepancia-error {
+    color: #f87171;
+    font-weight: 600;
+}
+
+.discrepancia-sobrante {
+    color: #38bdf8;
+    font-weight: 600;
 }
 

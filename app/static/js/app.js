@@ -287,6 +287,21 @@ function switchView(viewId) {
         if (viewId === 'view-users') {
             loadUsers();
         }
+        
+        // Inicializar datos si vamos al panel de Historial de Ventas
+        if (viewId === 'view-sales') {
+            loadSalesHistory();
+        }
+        
+        // Inicializar datos si vamos al panel de Inventario
+        if (viewId === 'view-inventory') {
+            switchInventorySubtab(state.currentInventorySubtab || 'inventory-movements');
+        }
+        
+        // Inicializar datos si vamos al panel de Reportes
+        if (viewId === 'view-reports') {
+            switchReportsSubtab(state.currentReportsSubtab || 'reports-summary');
+        }
     }
 
     state.currentView = viewId;
@@ -346,19 +361,19 @@ let activeCatalogQuickObj = null;
 
 // Cambiar de Sub-Pestaña de Catálogo
 function switchCatalogSubtab(subtabId) {
-    // 1. Quitar active de subtab buttons
-    document.querySelectorAll('.subtab-btn').forEach(btn => {
+    // 1. Quitar active de subtab buttons del catálogo
+    document.querySelectorAll('#view-catalog .subtab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
 
     // 2. Activar el botón correspondiente
-    const targetBtn = document.querySelector(`.subtab-btn[data-subtab="${subtabId}"]`);
+    const targetBtn = document.querySelector(`#view-catalog .subtab-btn[data-subtab="${subtabId}"]`);
     if (targetBtn) {
         targetBtn.classList.add('active');
     }
 
-    // 3. Ocultar todos los subtab panels
-    document.querySelectorAll('.subtab-panel').forEach(panel => {
+    // 3. Ocultar todos los subtab panels del catálogo
+    document.querySelectorAll('#view-catalog .subtab-panel').forEach(panel => {
         panel.classList.add('hidden');
     });
 
@@ -1909,25 +1924,27 @@ function renderCart() {
         const subtotalLinea = item.product.precio_venta_centavos * item.cantidad;
 
         li.innerHTML = `
-            <div class="cart-item-info">
+            <div class="cart-item-title-row">
                 <span class="cart-item-name" title="${item.product.nombre}">${item.product.nombre}</span>
+            </div>
+            <div class="cart-item-details-row">
                 <div class="cart-item-meta">
                     <span class="cart-item-price">${formatMoney(item.product.precio_venta_centavos)}</span>
                     <span style="color:var(--color-text-muted);">x ${item.product.unidad_medida.toLowerCase()}</span>
                 </div>
-            </div>
-            
-            <div class="cart-item-qty">
-                <button class="qty-btn btn-minus">&minus;</button>
-                <input type="number" class="qty-input" value="${item.cantidad}" min="1" max="${item.product.stock_actual}">
-                <button class="qty-btn btn-plus">&plus;</button>
-            </div>
-            
-            <div class="cart-item-right">
-                <span class="cart-item-subtotal">${formatMoney(subtotalLinea)}</span>
-                <button class="btn-icon btn-delete" title="Quitar ítem" style="color:var(--color-text-muted);">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                </button>
+                
+                <div class="cart-item-qty">
+                    <button class="qty-btn btn-minus">&minus;</button>
+                    <input type="number" class="qty-input" value="${item.cantidad}" min="1" max="${item.product.stock_actual}">
+                    <button class="qty-btn btn-plus">&plus;</button>
+                </div>
+                
+                <div class="cart-item-right">
+                    <span class="cart-item-subtotal">${formatMoney(subtotalLinea)}</span>
+                    <button class="btn-icon btn-delete" title="Quitar ítem" style="color:var(--color-text-muted);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                </div>
             </div>
         `;
 
@@ -2147,6 +2164,931 @@ function hideAllModals() {
 }
 
 // ==========================================================================
+// MÓDULO 3: HISTORIAL DE VENTAS, ANULACIONES Y DEVOLUCIONES
+// ==========================================================================
+let usersCache = null;
+let activeSelectedSale = null;
+
+async function ensureUsersCache() {
+    if (usersCache) return usersCache;
+    try {
+        const response = await apiRequest('/users');
+        if (response.ok) {
+            const users = await response.json();
+            usersCache = {};
+            users.forEach(u => {
+                usersCache[u.id] = u.nombre || u.username;
+            });
+            return usersCache;
+        }
+    } catch (err) {
+        console.error('Error al cargar caché de usuarios:', err);
+    }
+    return {};
+}
+
+async function loadSalesHistory() {
+    const tbody = document.getElementById('sales-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando historial de ventas...</td></tr>';
+
+    const searchVal = document.getElementById('sales-search').value.trim();
+    const desdeVal = document.getElementById('sales-filter-desde').value;
+    const hastaVal = document.getElementById('sales-filter-hasta').value;
+    const estadoVal = document.getElementById('sales-filter-estado').value;
+
+    try {
+        const users = await ensureUsersCache();
+
+        let queryParams = [];
+        if (desdeVal) queryParams.push(`desde=${desdeVal}`);
+        if (hastaVal) queryParams.push(`hasta=${hastaVal}`);
+        if (estadoVal) queryParams.push(`estado=${estadoVal}`);
+
+        const url = `/ventas${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`;
+        const response = await apiRequest(url);
+
+        if (!response.ok) {
+            if (response.status === 403) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">Acceso Denegado. Solo Supervisores o Administradores pueden ver el historial.</td></tr>';
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error al cargar las ventas.</td></tr>';
+            }
+            return;
+        }
+
+        let sales = await response.json();
+
+        // Filtrado por buscador local (por ID de venta o nombre del cajero)
+        if (searchVal) {
+            const searchLower = searchVal.toLowerCase();
+            sales = sales.filter(s => {
+                const cajeroName = (users[s.usuario_id] || s.usuario_id).toLowerCase();
+                return s.id.toLowerCase().includes(searchLower) || cajeroName.includes(searchLower);
+            });
+        }
+
+        if (sales.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-muted text-center py-4">No se encontraron ventas registradas.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        sales.forEach(sale => {
+            const tr = document.createElement('tr');
+
+            let statusClass = 'completada';
+            if (sale.estado === 'ANULADA') statusClass = 'anulada';
+            else if (sale.estado === 'DEVUELTA') statusClass = 'devuelta';
+            const statusBadge = `<span class="badge-status ${statusClass}">${sale.estado}</span>`;
+
+            let dateStr = sale.fecha;
+            try {
+                const d = new Date(sale.fecha);
+                dateStr = d.toLocaleString('es-AR');
+            } catch (e) {
+                console.error(e);
+            }
+
+            const cajero = users[sale.usuario_id] || sale.usuario_id;
+            const total = (sale.total_centavos / 100).toFixed(2);
+
+            tr.innerHTML = `
+                <td style="font-family: monospace; font-size: 0.85rem;" title="${sale.id}">
+                    ${sale.id}
+                </td>
+                <td>${dateStr}</td>
+                <td>${cajero}</td>
+                <td>${sale.metodo_pago}</td>
+                <td class="text-right" style="font-weight: 600;">$${total}</td>
+                <td class="text-center">${statusBadge}</td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-secondary btn-xs btn-view-sale-detail" data-id="${sale.id}">
+                        Ver Detalle
+                    </button>
+                </td>
+            `;
+
+            tr.querySelector('.btn-view-sale-detail').addEventListener('click', () => {
+                openSaleDetailsModal(sale);
+            });
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error al listar ventas:', err);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error de conexión al obtener el historial.</td></tr>';
+    }
+}
+
+function openSaleDetailsModal(sale) {
+    activeSelectedSale = sale;
+    
+    document.getElementById('detail-sale-id').textContent = sale.id;
+    
+    let dateStr = sale.fecha;
+    try {
+        dateStr = new Date(sale.fecha).toLocaleString('es-AR');
+    } catch (e) {}
+    document.getElementById('detail-sale-date').textContent = dateStr;
+    
+    const cajero = (usersCache && usersCache[sale.usuario_id]) || sale.usuario_id;
+    document.getElementById('detail-sale-user').textContent = `Caja ${sale.caja_id} / ${cajero}`;
+    
+    const total = (sale.total_centavos / 100).toFixed(2);
+    const recibido = (sale.monto_recibido_centavos / 100).toFixed(2);
+    const vuelto = (sale.vuelto_centavos / 100).toFixed(2);
+    
+    document.getElementById('detail-sale-payment').textContent = `${sale.metodo_pago} (Recibió: $${recibido}, Vuelto: $${vuelto})`;
+    
+    const statusSpan = document.getElementById('detail-sale-status');
+    statusSpan.textContent = sale.estado;
+    statusSpan.className = 'badge-status';
+    
+    let statusClass = 'completada';
+    if (sale.estado === 'ANULADA') statusClass = 'anulada';
+    else if (sale.estado === 'DEVUELTA') statusClass = 'devuelta';
+    statusSpan.classList.add(statusClass);
+    
+    const tbody = document.getElementById('detail-sale-items-body');
+    tbody.innerHTML = '';
+    
+    sale.detalles.forEach(item => {
+        const tr = document.createElement('tr');
+        
+        const precio = (item.precio_unitario_centavos / 100).toFixed(2);
+        const desc = (item.descuento_centavos / 100).toFixed(2);
+        const subtotal = (item.total_linea_centavos / 100).toFixed(2);
+        
+        tr.innerHTML = `
+            <td>${item.nombre_producto_snapshot} <span style="font-size: 0.8rem; color: var(--color-text-muted);">(${item.unidad_medida_snapshot})</span></td>
+            <td class="text-center">${item.cantidad}</td>
+            <td class="text-right">$${precio}</td>
+            <td class="text-right">$${desc}</td>
+            <td class="text-right" style="font-weight: 500;">$${subtotal}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    document.getElementById('detail-sale-total').textContent = `$${total}`;
+    
+    document.getElementById('sale-action-reason').value = '';
+    document.getElementById('sale-action-error').classList.add('hidden');
+    
+    const btnAnnul = document.getElementById('btn-annul-sale');
+    const btnRefund = document.getElementById('btn-refund-sale');
+    
+    btnAnnul.removeAttribute('disabled');
+    btnRefund.removeAttribute('disabled');
+    btnAnnul.title = '';
+    btnRefund.title = '';
+    
+    if (sale.estado !== 'COMPLETADA') {
+        btnAnnul.setAttribute('disabled', 'true');
+        btnRefund.setAttribute('disabled', 'true');
+        btnAnnul.title = `La venta ya se encuentra en estado ${sale.estado}.`;
+        btnRefund.title = `La venta ya se encuentra en estado ${sale.estado}.`;
+    } else {
+        const ventaDate = new Date(sale.fecha);
+        const today = new Date();
+        
+        const isSameDayUTC = ventaDate.getUTCFullYear() === today.getUTCFullYear() &&
+                             ventaDate.getUTCMonth() === today.getUTCMonth() &&
+                             ventaDate.getUTCDate() === today.getUTCDate();
+                             
+        if (!isSameDayUTC) {
+            btnAnnul.setAttribute('disabled', 'true');
+            btnAnnul.title = "Las anulaciones solo se permiten en el mismo día calendario de la venta (UTC). Use devolución en su lugar.";
+        }
+    }
+    
+    showModal('modal-sale-details');
+}
+
+async function executeSaleAction(action) {
+    if (!activeSelectedSale) return;
+    
+    const reasonInput = document.getElementById('sale-action-reason');
+    const reason = reasonInput.value.trim();
+    const errorDiv = document.getElementById('sale-action-error');
+    
+    if (!reason) {
+        errorDiv.textContent = 'El motivo de la operación es obligatorio.';
+        errorDiv.classList.remove('hidden');
+        playErrorSound();
+        return;
+    }
+    
+    errorDiv.classList.add('hidden');
+    
+    const url = `/ventas/${activeSelectedSale.id}/${action}`;
+    
+    try {
+        const response = await apiRequest(url, {
+            method: 'POST',
+            body: JSON.stringify({ motivo: reason })
+        });
+        
+        if (response.ok) {
+            showToast(`Venta ${action === 'anular' ? 'anulada' : 'devuelta'} con éxito.`, 'success');
+            hideAllModals();
+            
+            // Refrescar catálogo por si se restituyó stock
+            await fetchProducts();
+            
+            // Recargar historial
+            await loadSalesHistory();
+        } else {
+            const errData = await response.json().catch(() => ({}));
+            const msg = errData.detail || `Error al procesar la ${action === 'anular' ? 'anulación' : 'devolución'}.`;
+            errorDiv.textContent = msg;
+            errorDiv.classList.remove('hidden');
+            playErrorSound();
+        }
+    } catch (err) {
+        console.error(`Error en executeSaleAction (${action}):`, err);
+        errorDiv.textContent = 'Error de conexión con el servidor.';
+        errorDiv.classList.remove('hidden');
+        playErrorSound();
+    }
+}
+
+// ==========================================================================
+// MÓDULO 4: INVENTARIO (STOCK)
+// ==========================================================================
+state.currentInventorySubtab = 'inventory-movements';
+
+function switchInventorySubtab(subtabId) {
+    state.currentInventorySubtab = subtabId;
+
+    // Cambiar clases activas en los botones de pestaña
+    document.querySelectorAll('#view-inventory .subtab-btn').forEach(btn => {
+        if (btn.getAttribute('data-subtab') === subtabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Ocultar/mostrar paneles
+    document.querySelectorAll('#view-inventory .subtab-panel').forEach(panel => {
+        if (panel.id === subtabId) {
+            panel.classList.remove('hidden');
+            panel.classList.add('active');
+        } else {
+            panel.classList.add('hidden');
+            panel.classList.remove('active');
+        }
+    });
+
+    // Cargar datos
+    if (subtabId === 'inventory-movements') {
+        loadInventoryMovements();
+    } else if (subtabId === 'inventory-critical') {
+        loadCriticalStock();
+    }
+}
+
+async function loadInventoryMovements() {
+    const tbody = document.getElementById('inventory-movements-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Cargando movimientos de stock...</td></tr>';
+
+    const searchVal = document.getElementById('inventory-search-movements').value.trim().toLowerCase();
+
+    try {
+        const users = await ensureUsersCache();
+        const response = await apiRequest('/stock/movimientos');
+
+        if (!response.ok) {
+            if (response.status === 403) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-4">Acceso Denegado. Solo Supervisores o Administradores pueden ver movimientos.</td></tr>';
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-4">Error al cargar movimientos de stock.</td></tr>';
+            }
+            return;
+        }
+
+        let movements = await response.json();
+
+        // Mapear nombres de productos locales desde state.products
+        movements = movements.map(mov => {
+            const product = state.products.find(p => p.id === mov.producto_id);
+            mov.productName = product ? product.nombre : `ID: ${mov.producto_id}`;
+            return mov;
+        });
+
+        // Filtrar localmente por buscador
+        if (searchVal) {
+            movements = movements.filter(mov => 
+                mov.productName.toLowerCase().includes(searchVal) ||
+                (mov.motivo && mov.motivo.toLowerCase().includes(searchVal)) ||
+                mov.tipo.toLowerCase().includes(searchVal)
+            );
+        }
+
+        if (movements.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-4">No se encontraron movimientos registrados.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        movements.forEach(mov => {
+            const tr = document.createElement('tr');
+
+            // Formatear Fecha
+            let dateStr = mov.fecha;
+            try {
+                dateStr = new Date(mov.fecha).toLocaleString('es-AR');
+            } catch (e) {}
+
+            // Tipo de Movimiento Badge o Color
+            let typeColor = '';
+            if (mov.tipo === 'INGRESO') typeColor = '#4ade80'; // verde
+            else if (mov.tipo === 'VENTA') typeColor = 'var(--color-text-muted)';
+            else if (mov.tipo === 'DEVOLUCION') typeColor = '#fbbf24'; // amarillo/naranja
+            else if (mov.tipo === 'ANULACION') typeColor = '#38bdf8'; // celeste/azul
+            else if (mov.tipo === 'AJUSTE') typeColor = '#f87171'; // rojo/naranja
+
+            const typeBadge = `<span style="font-weight:600; color: ${typeColor};">${mov.tipo}</span>`;
+
+            // Cantidad delta con signo
+            const isPositive = ['INGRESO', 'DEVOLUCION', 'ANULACION'].includes(mov.tipo) || (mov.tipo === 'AJUSTE' && mov.cantidad > 0);
+            let displayQty = mov.cantidad;
+            if (isPositive && mov.cantidad > 0) {
+                displayQty = `+${mov.cantidad}`;
+            } else if (mov.cantidad < 0) {
+                displayQty = `${mov.cantidad}`;
+            } else if (!isPositive && mov.cantidad > 0) {
+                displayQty = `-${mov.cantidad}`;
+            }
+
+            const qtyStyle = isPositive ? 'color: #4ade80; font-weight:600;' : 'color: #f87171; font-weight:600;';
+
+            const user = users[mov.usuario_id] || mov.usuario_id;
+            const motivoStr = mov.motivo || '-';
+
+            tr.innerHTML = `
+                <td>${dateStr}</td>
+                <td style="font-weight: 500;">${mov.productName}</td>
+                <td>${typeBadge}</td>
+                <td class="text-right" style="${qtyStyle}">${displayQty}</td>
+                <td class="text-right">${mov.stock_anterior}</td>
+                <td class="text-right">${mov.stock_nuevo}</td>
+                <td>${motivoStr}</td>
+                <td>${user}</td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error al listar movimientos de stock:', err);
+        tbody.innerHTML = '<tr><td colspan="8" class="text-danger text-center py-4">Error de conexión al obtener movimientos.</td></tr>';
+    }
+}
+
+async function loadCriticalStock() {
+    const tbody = document.getElementById('inventory-critical-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4">Cargando productos con stock crítico...</td></tr>';
+
+    try {
+        const response = await apiRequest('/stock/bajo-minimo');
+
+        if (!response.ok) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error al cargar productos bajo stock mínimo.</td></tr>';
+            return;
+        }
+
+        const products = await response.json();
+
+        if (products.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-success text-center py-4">🎉 ¡Excelente! No hay productos con stock por debajo del mínimo.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        products.forEach(p => {
+            const tr = document.createElement('tr');
+
+            const barcode = p.codigos_barras && p.codigos_barras.length > 0 ? p.codigos_barras.join(', ') : '-';
+            const price = (p.precio_venta_centavos / 100).toFixed(2);
+            
+            const activeBadge = p.activo === 1 
+                ? '<span class="badge-status active">Activo</span>' 
+                : '<span class="badge-status inactive">Inactivo</span>';
+
+            tr.innerHTML = `
+                <td style="font-family: monospace; font-size: 0.85rem;">${barcode}</td>
+                <td style="font-weight: 500;">${p.nombre}</td>
+                <td>${p.marca_nombre || '-'} / ${p.categoria_nombre || '-'}</td>
+                <td class="text-right" style="font-weight: 500;">${p.stock_minimo}</td>
+                <td class="text-right" style="color: #f87171; font-weight: 600; background-color: rgba(220, 38, 38, 0.05);">${p.stock}</td>
+                <td class="text-right" style="font-weight: 600;">$${price}</td>
+                <td class="text-center">${activeBadge}</td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error al listar stock crítico:', err);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-danger text-center py-4">Error de conexión al obtener stock crítico.</td></tr>';
+    }
+}
+
+function openStockAjusteModal() {
+    const select = document.getElementById('ajuste-producto-id');
+    if (!select) return;
+
+    const activeProducts = state.products.filter(p => p.activo === 1);
+    activeProducts.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    let html = '<option value="">-- Seleccionar Producto --</option>';
+    activeProducts.forEach(p => {
+        html += `<option value="${p.id}">${p.nombre} (Stock actual: ${p.stock})</option>`;
+    });
+
+    select.innerHTML = html;
+
+    document.getElementById('ajuste-cantidad-delta').value = '';
+    document.getElementById('ajuste-motivo').value = '';
+    document.getElementById('ajuste-error').classList.add('hidden');
+
+    showModal('modal-stock-ajuste');
+}
+
+async function openStockIngresoModal() {
+    const selectProduct = document.getElementById('ingreso-producto-id');
+    const selectProvider = document.getElementById('ingreso-proveedor-id');
+    if (!selectProduct || !selectProvider) return;
+
+    // Cargar productos
+    const activeProducts = state.products.filter(p => p.activo === 1);
+    activeProducts.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+    let prodHtml = '<option value="">-- Seleccionar Producto --</option>';
+    activeProducts.forEach(p => {
+        prodHtml += `<option value="${p.id}">${p.nombre} (Stock actual: ${p.stock})</option>`;
+    });
+    selectProduct.innerHTML = prodHtml;
+
+    // Cargar proveedores
+    try {
+        const response = await apiRequest('/proveedores');
+        if (response.ok) {
+            const providers = await response.json();
+            providers.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            let provHtml = '<option value="">-- Seleccionar Proveedor --</option>';
+            providers.forEach(prov => {
+                provHtml += `<option value="${prov.id}">${prov.nombre}</option>`;
+            });
+            selectProvider.innerHTML = provHtml;
+        } else {
+            selectProvider.innerHTML = '<option value="">Error al cargar proveedores</option>';
+        }
+    } catch (err) {
+        console.error('Error al cargar proveedores para modal ingreso:', err);
+        selectProvider.innerHTML = '<option value="">Error de conexión</option>';
+    }
+
+    document.getElementById('ingreso-cantidad').value = '';
+    document.getElementById('ingreso-motivo').value = '';
+    document.getElementById('ingreso-error').classList.add('hidden');
+
+    showModal('modal-stock-ingreso');
+}
+
+async function saveStockAjuste(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('ajuste-error');
+    if (!errorDiv) return;
+
+    const productoId = document.getElementById('ajuste-producto-id').value;
+    const cantidadDelta = parseInt(document.getElementById('ajuste-cantidad-delta').value);
+    const motivo = document.getElementById('ajuste-motivo').value.trim();
+
+    if (!productoId || isNaN(cantidadDelta) || !motivo) {
+        errorDiv.textContent = 'Todos los campos son obligatorios.';
+        errorDiv.classList.remove('hidden');
+        playErrorSound();
+        return;
+    }
+
+    try {
+        const response = await apiRequest('/stock/ajuste', {
+            method: 'POST',
+            body: JSON.stringify({
+                producto_id: productoId,
+                cantidad_delta: cantidadDelta,
+                motivo: motivo
+            })
+        });
+
+        if (response.ok) {
+            showToast('Ajuste de stock registrado con éxito.', 'success');
+            document.getElementById('modal-stock-ajuste').classList.add('hidden');
+            
+            // Recargar productos para POS
+            await fetchProducts();
+
+            // Recargar historial y stock crítico
+            if (state.currentInventorySubtab === 'inventory-movements') {
+                loadInventoryMovements();
+            } else {
+                loadCriticalStock();
+            }
+        } else {
+            const errData = await response.json().catch(() => ({}));
+            errorDiv.textContent = errData.detail || 'Error al procesar el ajuste de stock.';
+            errorDiv.classList.remove('hidden');
+            playErrorSound();
+        }
+    } catch (err) {
+        console.error('Error al registrar ajuste de stock:', err);
+        errorDiv.textContent = 'Error de conexión con el servidor.';
+        errorDiv.classList.remove('hidden');
+        playErrorSound();
+    }
+}
+
+async function saveStockIngreso(e) {
+    e.preventDefault();
+    const errorDiv = document.getElementById('ingreso-error');
+    if (!errorDiv) return;
+
+    const productoId = document.getElementById('ingreso-producto-id').value;
+    const proveedorId = document.getElementById('ingreso-proveedor-id').value;
+    const cantidad = parseInt(document.getElementById('ingreso-cantidad').value);
+    const motivo = document.getElementById('ingreso-motivo').value.trim();
+
+    if (!productoId || !proveedorId || isNaN(cantidad) || cantidad <= 0 || !motivo) {
+        errorDiv.textContent = 'Todos los campos son obligatorios y la cantidad debe ser mayor a cero.';
+        errorDiv.classList.remove('hidden');
+        playErrorSound();
+        return;
+    }
+
+    try {
+        const response = await apiRequest('/stock/ingreso', {
+            method: 'POST',
+            body: JSON.stringify({
+                producto_id: productoId,
+                proveedor_id: proveedorId,
+                cantidad: cantidad,
+                motivo: motivo
+            })
+        });
+
+        if (response.ok) {
+            showToast('Ingreso de mercadería registrado con éxito.', 'success');
+            document.getElementById('modal-stock-ingreso').classList.add('hidden');
+            
+            // Recargar productos para POS
+            await fetchProducts();
+
+            // Recargar historial y stock crítico
+            if (state.currentInventorySubtab === 'inventory-movements') {
+                loadInventoryMovements();
+            } else {
+                loadCriticalStock();
+            }
+        } else {
+            const errData = await response.json().catch(() => ({}));
+            errorDiv.textContent = errData.detail || 'Error al procesar el ingreso de mercadería.';
+            errorDiv.classList.remove('hidden');
+            playErrorSound();
+        }
+    } catch (err) {
+        console.error('Error al registrar ingreso de stock:', err);
+        errorDiv.textContent = 'Error de conexión con el servidor.';
+        errorDiv.classList.remove('hidden');
+        playErrorSound();
+    }
+}
+
+// ==========================================================================
+// MÓDULO 5: REPORTES Y CAJA
+// ==========================================================================
+state.currentReportsSubtab = 'reports-summary';
+
+function switchReportsSubtab(subtabId) {
+    state.currentReportsSubtab = subtabId;
+
+    // Cambiar clases activas en los botones de pestaña
+    document.querySelectorAll('#view-reports .subtab-btn').forEach(btn => {
+        if (btn.getAttribute('data-subtab') === subtabId) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+
+    // Ocultar/mostrar paneles
+    document.querySelectorAll('#view-reports .subtab-panel').forEach(panel => {
+        if (panel.id === subtabId) {
+            panel.classList.remove('hidden');
+            panel.classList.add('active');
+        } else {
+            panel.classList.add('hidden');
+            panel.classList.remove('active');
+        }
+    });
+
+    // Cargar datos
+    if (subtabId === 'reports-summary') {
+        loadFinancialSummary();
+    } else if (subtabId === 'reports-cajas') {
+        loadCajasReport();
+    } else if (subtabId === 'reports-ranking') {
+        loadProductRanking();
+    }
+}
+
+async function loadFinancialSummary() {
+    const fromVal = document.getElementById('reports-filter-desde').value;
+    const toVal = document.getElementById('reports-filter-hasta').value;
+
+    let queryParams = [];
+    if (fromVal) queryParams.push(`desde=${fromVal}`);
+    if (toVal) queryParams.push(`hasta=${toVal}`);
+
+    const url = `/reportes/ventas-diarias${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`;
+    
+    try {
+        const response = await apiRequest(url);
+        if (!response.ok) {
+            if (response.status === 403) {
+                showToast("Acceso denegado a Reportes.", "error");
+            }
+            return;
+        }
+
+        const data = await response.json();
+
+        // Rellenar tarjetas métricas
+        const totalGeneral = data.total_general_centavos || 0;
+        const totalDescuentos = data.descuentos_aplicados_centavos || 0;
+        const cantidadVentas = data.cantidad_ventas || 0;
+        const ticketPromedio = cantidadVentas > 0 ? (totalGeneral / cantidadVentas) : 0;
+
+        document.getElementById('reports-total-facturado').textContent = `$${(totalGeneral / 100).toFixed(2)}`;
+        document.getElementById('reports-cantidad-ventas').textContent = cantidadVentas;
+        document.getElementById('reports-ticket-promedio').textContent = `$${(ticketPromedio / 100).toFixed(2)}`;
+        document.getElementById('reports-descuentos-aplicados').textContent = `$${(totalDescuentos / 100).toFixed(2)}`;
+
+        // Rellenar la tabla de evolución
+        const tbody = document.getElementById('reports-summary-table-body');
+        if (!tbody) return;
+
+        if (!data.diario || data.diario.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No hay datos de ventas en este rango de fechas.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.diario.forEach(item => {
+            const tr = document.createElement('tr');
+            
+            const subtotal = (item.subtotal_centavos / 100).toFixed(2);
+            const descuentos = (item.descuentos_centavos / 100).toFixed(2);
+            const neto = (item.total_neto_centavos / 100).toFixed(2);
+
+            tr.innerHTML = `
+                <td style="font-weight: 500;">${item.fecha}</td>
+                <td class="text-center">${item.cantidad_ventas}</td>
+                <td class="text-right">$${subtotal}</td>
+                <td class="text-right" style="color: #fbbf24;">$${descuentos}</td>
+                <td class="text-right" style="font-weight: 600; color: #4ade80;">$${neto}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error al cargar resumen financiero:', err);
+    }
+}
+
+async function loadCajasReport() {
+    const fromVal = document.getElementById('reports-filter-desde').value;
+    const toVal = document.getElementById('reports-filter-hasta').value;
+
+    let queryParams = [];
+    if (fromVal) queryParams.push(`desde=${fromVal}`);
+    if (toVal) queryParams.push(`hasta=${toVal}`);
+
+    const url = `/reportes/cajas${queryParams.length > 0 ? '?' + queryParams.join('&') : ''}`;
+    const tbody = document.getElementById('reports-cajas-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center py-4">Cargando historial de cajas...</td></tr>';
+
+    try {
+        const users = await ensureUsersCache();
+        const response = await apiRequest(url);
+
+        if (!response.ok) {
+            tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-4">Error al cargar historial de cajas.</td></tr>';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="11" class="text-muted text-center py-4">No se encontraron sesiones de caja registradas.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(c => {
+            const tr = document.createElement('tr');
+
+            const cajero = users[c.usuario_apertura_id] || c.usuario_apertura_id;
+            const apertura = (c.monto_apertura_centavos / 100).toFixed(2);
+            const ventas = (c.total_ventas_centavos / 100).toFixed(2);
+            const ingresos = (c.total_ingresos_centavos / 100).toFixed(2);
+            const retiros = (c.total_retiros_centavos / 100).toFixed(2);
+            const calculado = (c.total_calculado_centavos / 100).toFixed(2);
+            
+            const declaradoVal = c.monto_cierre_declarado_centavos !== null 
+                ? (c.monto_cierre_declarado_centavos / 100).toFixed(2) 
+                : '-';
+            
+            // Diferencia
+            let diferenciaStr = '-';
+            let diffClass = '';
+            if (c.monto_cierre_declarado_centavos !== null) {
+                const diffCentavos = c.monto_cierre_declarado_centavos - c.total_calculado_centavos;
+                const diffPesos = (diffCentavos / 100).toFixed(2);
+                
+                if (diffCentavos === 0) {
+                    diferenciaStr = '$0.00';
+                    diffClass = 'discrepancia-ok';
+                } else if (diffCentavos < 0) {
+                    diferenciaStr = `$${diffPesos}`;
+                    diffClass = 'discrepancia-error';
+                } else {
+                    diferenciaStr = `+$${diffPesos}`;
+                    diffClass = 'discrepancia-sobrante';
+                }
+            }
+
+            // Fechas
+            let dateApertura = c.fecha_apertura;
+            try {
+                dateApertura = new Date(c.fecha_apertura).toLocaleString('es-AR');
+            } catch (e) {}
+
+            let dateCierre = '-';
+            if (c.fecha_cierre) {
+                try {
+                    dateCierre = new Date(c.fecha_cierre).toLocaleString('es-AR');
+                } catch (e) {}
+            }
+
+            tr.innerHTML = `
+                <td style="font-family: monospace; font-size: 0.8rem;" title="${c.id}">${c.id.substring(0, 8)}...</td>
+                <td>${dateApertura}</td>
+                <td>${dateCierre}</td>
+                <td>${cajero}</td>
+                <td class="text-right">$${apertura}</td>
+                <td class="text-right">$${ventas}</td>
+                <td class="text-right" style="color: #4ade80;">$${ingresos}</td>
+                <td class="text-right" style="color: #f87171;">$${retiros}</td>
+                <td class="text-right" style="font-weight: 500;">$${calculado}</td>
+                <td class="text-right" style="font-weight: 500;">${declaradoVal !== '-' ? '$' + declaradoVal : '-'}</td>
+                <td class="text-right ${diffClass}">${diferenciaStr}</td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error al cargar historial de cajas:', err);
+        tbody.innerHTML = '<tr><td colspan="11" class="text-danger text-center py-4">Error de conexión con el servidor.</td></tr>';
+    }
+}
+
+async function loadProductRanking() {
+    const orderSelect = document.getElementById('reports-ranking-order');
+    const orderBy = orderSelect ? orderSelect.value : 'cantidad';
+
+    const url = `/reportes/ranking-productos?ordenar_por=${orderBy}`;
+    const tbody = document.getElementById('reports-ranking-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Cargando ranking de productos...</td></tr>';
+
+    try {
+        const response = await apiRequest(url);
+        if (!response.ok) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-4">Error al cargar ranking de productos.</td></tr>';
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center py-4">No hay ventas registradas para generar el ranking.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach((item, index) => {
+            const tr = document.createElement('tr');
+
+            const total = (item.total_ventas_centavos / 100).toFixed(2);
+            
+            let positionHtml = `${index + 1}`;
+            if (index === 0) positionHtml = '🥇';
+            else if (index === 1) positionHtml = '🥈';
+            else if (index === 2) positionHtml = '🥉';
+
+            tr.innerHTML = `
+                <td class="text-center" style="font-size: 1.1rem; font-weight: 600;">${positionHtml}</td>
+                <td style="font-family: monospace; font-size: 0.85rem;">${item.codigo_barras || '-'}</td>
+                <td style="font-weight: 500;">${item.nombre}</td>
+                <td class="text-right" style="font-weight: 500;">${item.cantidad_vendida}</td>
+                <td class="text-right" style="font-weight: 600; color: #4ade80;">$${total}</td>
+            `;
+
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error('Error al cargar ranking de productos:', err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center py-4">Error de conexión con el servidor.</td></tr>';
+    }
+}
+
+async function exportActiveReport(format) {
+    const fromVal = document.getElementById('reports-filter-desde').value;
+    const toVal = document.getElementById('reports-filter-hasta').value;
+    const orderBy = document.getElementById('reports-ranking-order').value;
+
+    let reportType = 'ventas-diarias';
+    if (state.currentReportsSubtab === 'reports-cajas') {
+        reportType = 'cajas';
+    } else if (state.currentReportsSubtab === 'reports-ranking') {
+        reportType = 'ranking-productos';
+    }
+
+    let params = `format=${format}`;
+    if (fromVal) params += `&desde=${fromVal}`;
+    if (toVal) params += `&hasta=${toVal}`;
+    if (reportType === 'ranking-productos') params += `&ordenar_por=${orderBy}`;
+
+    const url = `/api/reportes/${reportType}/export?${params}`;
+
+    try {
+        showToast("Generando archivo de exportación...", "info");
+
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${state.token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Código de estado del servidor: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        
+        let filename = `${reportType}_report.${format}`;
+        const disposition = response.headers.get('Content-Disposition');
+        if (disposition && disposition.indexOf('attachment') !== -1) {
+            const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            const matches = filenameRegex.exec(disposition);
+            if (matches != null && matches[1]) { 
+                filename = matches[1].replace(/['"]/g, '');
+            }
+        }
+
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+
+        showToast("Archivo descargado exitosamente.", "success");
+    } catch (err) {
+        console.error('Error al exportar reporte:', err);
+        showToast("Error al exportar el reporte seleccionado.", "error");
+        playErrorSound();
+    }
+}
+
+// ==========================================================================
 // INICIALIZACIÓN Y BINDINGS DE EVENTOS
 // ==========================================================================
 
@@ -2232,10 +3174,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- SUB-TABS CATÁLOGO ---
-    document.querySelectorAll('.subtab-btn').forEach(btn => {
+    document.querySelectorAll('#view-catalog .subtab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const subtabId = e.target.closest('.subtab-btn').getAttribute('data-subtab');
             switchCatalogSubtab(subtabId);
+        });
+    });
+
+    // --- SUB-TABS INVENTARIO ---
+    document.querySelectorAll('#view-inventory .subtab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const subtabId = e.target.closest('.subtab-btn').getAttribute('data-subtab');
+            switchInventorySubtab(subtabId);
         });
     });
 
@@ -2343,6 +3293,131 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 150);
         });
     }
+
+    // --- ACCIONES HISTORIAL DE VENTAS (MÓDULO 3) ---
+    const salesSearch = document.getElementById('sales-search');
+    if (salesSearch) {
+        let searchSalesTimeout;
+        salesSearch.addEventListener('input', (e) => {
+            clearTimeout(searchSalesTimeout);
+            searchSalesTimeout = setTimeout(() => {
+                loadSalesHistory();
+            }, 150);
+        });
+    }
+
+    const salesFilterDesde = document.getElementById('sales-filter-desde');
+    if (salesFilterDesde) {
+        salesFilterDesde.addEventListener('change', loadSalesHistory);
+    }
+
+    const salesFilterHasta = document.getElementById('sales-filter-hasta');
+    if (salesFilterHasta) {
+        salesFilterHasta.addEventListener('change', loadSalesHistory);
+    }
+
+    const salesFilterEstado = document.getElementById('sales-filter-estado');
+    if (salesFilterEstado) {
+        salesFilterEstado.addEventListener('change', loadSalesHistory);
+    }
+
+    const btnClearSalesFilters = document.getElementById('btn-clear-sales-filters');
+    if (btnClearSalesFilters) {
+        btnClearSalesFilters.addEventListener('click', () => {
+            if (salesSearch) salesSearch.value = '';
+            if (salesFilterDesde) salesFilterDesde.value = '';
+            if (salesFilterHasta) salesFilterHasta.value = '';
+            if (salesFilterEstado) salesFilterEstado.value = '';
+            loadSalesHistory();
+        });
+    }
+
+    const btnAnnulSale = document.getElementById('btn-annul-sale');
+    if (btnAnnulSale) {
+        btnAnnulSale.addEventListener('click', () => executeSaleAction('anular'));
+    }
+
+    const btnRefundSale = document.getElementById('btn-refund-sale');
+    if (btnRefundSale) {
+        btnRefundSale.addEventListener('click', () => executeSaleAction('devolver'));
+    }
+
+    // --- ACCIONES DE INVENTARIO (MÓDULO 4) ---
+    const inventorySearchMovements = document.getElementById('inventory-search-movements');
+    if (inventorySearchMovements) {
+        let searchMovementsTimeout;
+        inventorySearchMovements.addEventListener('input', (e) => {
+            clearTimeout(searchMovementsTimeout);
+            searchMovementsTimeout = setTimeout(() => {
+                loadInventoryMovements();
+            }, 150);
+        });
+    }
+
+    const btnStockAjuste = document.getElementById('btn-stock-ajuste');
+    if (btnStockAjuste) {
+        btnStockAjuste.addEventListener('click', openStockAjusteModal);
+    }
+
+    const btnStockIngreso = document.getElementById('btn-stock-ingreso');
+    if (btnStockIngreso) {
+        btnStockIngreso.addEventListener('click', openStockIngresoModal);
+    }
+
+    const formStockAjuste = document.getElementById('form-stock-ajuste');
+    if (formStockAjuste) {
+        formStockAjuste.addEventListener('submit', saveStockAjuste);
+    }
+
+    const formStockIngreso = document.getElementById('form-stock-ingreso');
+    if (formStockIngreso) {
+        formStockIngreso.addEventListener('submit', saveStockIngreso);
+    }
+
+    // --- ACCIONES DE REPORTES (MÓDULO 5) ---
+    document.querySelectorAll('#view-reports .subtab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const subtabId = e.target.closest('.subtab-btn').getAttribute('data-subtab');
+            switchReportsSubtab(subtabId);
+        });
+    });
+
+    const triggerRefreshReports = () => {
+        if (state.currentReportsSubtab === 'reports-summary') loadFinancialSummary();
+        else if (state.currentReportsSubtab === 'reports-cajas') loadCajasReport();
+        else if (state.currentReportsSubtab === 'reports-ranking') loadProductRanking();
+    };
+
+    const reportsFilterDesde = document.getElementById('reports-filter-desde');
+    if (reportsFilterDesde) {
+        reportsFilterDesde.addEventListener('change', triggerRefreshReports);
+    }
+
+    const reportsFilterHasta = document.getElementById('reports-filter-hasta');
+    if (reportsFilterHasta) {
+        reportsFilterHasta.addEventListener('change', triggerRefreshReports);
+    }
+
+    const btnClearReportsFilters = document.getElementById('btn-clear-reports-filters');
+    if (btnClearReportsFilters) {
+        btnClearReportsFilters.addEventListener('click', () => {
+            if (reportsFilterDesde) reportsFilterDesde.value = '';
+            if (reportsFilterHasta) reportsFilterHasta.value = '';
+            triggerRefreshReports();
+        });
+    }
+
+    const reportsRankingOrder = document.getElementById('reports-ranking-order');
+    if (reportsRankingOrder) {
+        reportsRankingOrder.addEventListener('change', loadProductRanking);
+    }
+
+    document.querySelectorAll('.btn-export-report').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const format = e.target.closest('.btn-export-report').getAttribute('data-format');
+            exportActiveReport(format);
+        });
+    });
 
     // Botón cancelar del modal cobro
     document.getElementById('btn-cancelar-cobro').addEventListener('click', () => {

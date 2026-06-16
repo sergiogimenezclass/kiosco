@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css?v=1.0.3">
 </head>
 <body>
 
@@ -357,30 +357,271 @@
                     </div>
                 </section>
 
-                <!-- VISTA 3: INVENTARIO (PLACEHOLDER) -->
+                <!-- VISTA 3: INVENTARIO -->
                 <section id="view-inventory" class="view-panel hidden">
-                    <div class="placeholder-view">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="10" x2="22" y2="10"/><path d="M6 21h12M12 17v4"/></svg>
-                        <h2>Módulo Inventario</h2>
-                        <p>El panel de ajustes de stock, ingresos de mercadería y movimientos de inventario se encuentra en desarrollo.</p>
+                    <div class="catalog-section">
+                        <div class="catalog-subtabs">
+                            <button type="button" class="subtab-btn active" data-subtab="inventory-movements" id="tab-inventory-movements">
+                                <span>Historial de Movimientos</span>
+                            </button>
+                            <button type="button" class="subtab-btn" data-subtab="inventory-critical" id="tab-inventory-critical">
+                                <span>Stock Mínimo / Crítico</span>
+                            </button>
+                        </div>
+
+                        <!-- Panel 1: Historial de Movimientos -->
+                        <div id="inventory-movements" class="subtab-panel active">
+                            <div class="catalog-header-actions" style="margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; align-items: center;">
+                                <div class="catalog-search-box" style="flex: 1; min-width: 250px;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                    <input type="text" id="inventory-search-movements" placeholder="Buscar por producto o motivo...">
+                                </div>
+                                <div style="display: flex; gap: 0.75rem;">
+                                    <button type="button" class="btn btn-secondary" id="btn-stock-ajuste" style="display: flex; align-items: center; gap: 0.25rem;">
+                                        <span>⚙️ Ajustar Stock</span>
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="btn-stock-ingreso" style="display: flex; align-items: center; gap: 0.25rem;">
+                                        <span>+ Ingresar Mercadería</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="catalog-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha / Hora</th>
+                                            <th>Producto</th>
+                                            <th>Tipo Mov.</th>
+                                            <th class="text-right">Cant.</th>
+                                            <th class="text-right">Stock Anterior</th>
+                                            <th class="text-right">Stock Nuevo</th>
+                                            <th>Motivo</th>
+                                            <th>Usuario</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventory-movements-table-body">
+                                        <!-- JS dinámico -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Stock Crítico / Bajo Mínimo -->
+                        <div id="inventory-critical" class="subtab-panel hidden">
+                            <div class="catalog-header-actions" style="margin-bottom: 1rem;">
+                                <p style="font-size: 0.85rem; color: var(--color-text-muted);">
+                                    Listado de productos cuyo stock actual es menor o igual al stock mínimo configurado.
+                                </p>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="catalog-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Código Barra</th>
+                                            <th>Producto</th>
+                                            <th>Marca / Categoría</th>
+                                            <th class="text-right">Stock Mínimo</th>
+                                            <th class="text-right" style="color: #f87171;">Stock Actual</th>
+                                            <th class="text-right">Precio Venta</th>
+                                            <th class="text-center">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="inventory-critical-table-body">
+                                        <!-- JS dinámico -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
-                <!-- VISTA 4: HISTORIAL VENTAS (PLACEHOLDER) -->
+                <!-- VISTA 4: HISTORIAL VENTAS -->
                 <section id="view-sales" class="view-panel hidden">
-                    <div class="placeholder-view">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                        <h2>Historial de Ventas</h2>
-                        <p>El panel para buscar transacciones, ver detalles y aplicar devoluciones/anulaciones se encuentra en desarrollo.</p>
+                    <div class="catalog-section">
+                        <div class="catalog-header-actions" style="flex-wrap: wrap; gap: 1rem; align-items: center;">
+                            <div class="catalog-search-box" style="flex: 1; min-width: 250px;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                                <input type="text" id="sales-search" placeholder="Buscar por ID de venta...">
+                            </div>
+                            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                                <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <label for="sales-filter-desde" style="font-size: 0.85rem; color: var(--color-text-muted);">Desde:</label>
+                                    <input type="date" id="sales-filter-desde" class="form-input" style="padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">
+                                </div>
+                                <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <label for="sales-filter-hasta" style="font-size: 0.85rem; color: var(--color-text-muted);">Hasta:</label>
+                                    <input type="date" id="sales-filter-hasta" class="form-input" style="padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">
+                                </div>
+                                <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <label for="sales-filter-estado" style="font-size: 0.85rem; color: var(--color-text-muted);">Estado:</label>
+                                    <select id="sales-filter-estado" class="form-input" style="padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">
+                                        <option value="">Todos</option>
+                                        <option value="COMPLETADA">Completada</option>
+                                        <option value="ANULADA">Anulada</option>
+                                        <option value="DEVUELTA">Devuelta</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-secondary" id="btn-clear-sales-filters" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;">
+                                    Limpiar Filtros
+                                </button>
+                            </div>
+                        </div>
+                        <div class="table-responsive catalog-table-wrapper" style="margin-top: 1rem;">
+                            <table class="catalog-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID Venta</th>
+                                        <th>Fecha / Hora</th>
+                                        <th>Cajero</th>
+                                        <th>Método Pago</th>
+                                        <th class="text-right">Total</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sales-table-body">
+                                    <!-- JS dinámico -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
-                <!-- VISTA 5: REPORTES (PLACEHOLDER) -->
+                <!-- VISTA 5: REPORTES -->
                 <section id="view-reports" class="view-panel hidden">
-                    <div class="placeholder-view">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                        <h2>Módulo Reportes</h2>
-                        <p>El panel de estadísticas de ventas, cierres de caja y exportación de reportes se encuentra en desarrollo.</p>
+                    <div class="catalog-section">
+                        <!-- Cabecera de Filtros y Acciones de Reportes -->
+                        <div class="catalog-header-actions" style="flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border); padding-bottom: 1rem; margin-bottom: 1rem;">
+                            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                                <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <label for="reports-filter-desde" style="font-size: 0.85rem; color: var(--color-text-muted);">Desde:</label>
+                                    <input type="date" id="reports-filter-desde" class="form-input" style="padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">
+                                </div>
+                                <div class="filter-group" style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <label for="reports-filter-hasta" style="font-size: 0.85rem; color: var(--color-text-muted);">Hasta:</label>
+                                    <input type="date" id="reports-filter-hasta" class="form-input" style="padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem;">
+                                </div>
+                                <button type="button" class="btn btn-secondary" id="btn-clear-reports-filters" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;">
+                                    Limpiar Fechas
+                                </button>
+                            </div>
+                            
+                            <!-- Acciones de Exportación -->
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <span style="font-size: 0.85rem; color: var(--color-text-muted); font-weight: 500;">Exportar Reporte Activo:</span>
+                                <button type="button" class="btn btn-secondary btn-xs btn-export-report" data-format="pdf" style="background-color: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2);">PDF</button>
+                                <button type="button" class="btn btn-secondary btn-xs btn-export-report" data-format="xlsx" style="background-color: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2);">EXCEL</button>
+                                <button type="button" class="btn btn-secondary btn-xs btn-export-report" data-format="csv" style="background-color: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2);">CSV</button>
+                            </div>
+                        </div>
+
+                        <!-- Sub-tabs del Módulo de Reportes -->
+                        <div class="catalog-subtabs" style="margin-bottom: 1rem;">
+                            <button type="button" class="subtab-btn active" data-subtab="reports-summary" id="tab-reports-summary">
+                                <span>Resumen Financiero</span>
+                            </button>
+                            <button type="button" class="subtab-btn" data-subtab="reports-cajas" id="tab-reports-cajas">
+                                <span>Auditoría de Cajas</span>
+                            </button>
+                            <button type="button" class="subtab-btn" data-subtab="reports-ranking" id="tab-reports-ranking">
+                                <span>Ranking de Productos</span>
+                            </button>
+                        </div>
+
+                        <!-- Panel 1: Resumen Financiero -->
+                        <div id="reports-summary" class="subtab-panel active">
+                            <!-- Métricas Consolidadas en Grid -->
+                            <div class="metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                                <div class="metric-card" style="background-color: var(--color-bg-card); border: 1px solid var(--color-border); padding: 1.25rem; border-radius: 8px;">
+                                    <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">Total Facturado</span>
+                                    <strong id="reports-total-facturado" style="font-size: 1.5rem; color: var(--color-text-primary); display: block; margin-top: 0.25rem;">$0.00</strong>
+                                </div>
+                                <div class="metric-card" style="background-color: var(--color-bg-card); border: 1px solid var(--color-border); padding: 1.25rem; border-radius: 8px;">
+                                    <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">Ventas Realizadas</span>
+                                    <strong id="reports-cantidad-ventas" style="font-size: 1.5rem; color: #38bdf8; display: block; margin-top: 0.25rem;">0</strong>
+                                </div>
+                                <div class="metric-card" style="background-color: var(--color-bg-card); border: 1px solid var(--color-border); padding: 1.25rem; border-radius: 8px;">
+                                    <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">Ticket Promedio</span>
+                                    <strong id="reports-ticket-promedio" style="font-size: 1.5rem; color: #4ade80; display: block; margin-top: 0.25rem;">$0.00</strong>
+                                </div>
+                                <div class="metric-card" style="background-color: var(--color-bg-card); border: 1px solid var(--color-border); padding: 1.25rem; border-radius: 8px;">
+                                    <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block; text-transform: uppercase; letter-spacing: 0.5px;">Descuentos Aplicados</span>
+                                    <strong id="reports-descuentos-aplicados" style="font-size: 1.5rem; color: #fbbf24; display: block; margin-top: 0.25rem;">$0.00</strong>
+                                </div>
+                            </div>
+                            
+                            <!-- Tabla de Evolución Diaria -->
+                            <h3 style="font-size: 1rem; margin-bottom: 0.75rem; font-weight: 600;">Evolución de Ventas Diarias</h3>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="catalog-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th class="text-center">Cant. Transacciones</th>
+                                            <th class="text-right">Subtotal</th>
+                                            <th class="text-right">Descuentos</th>
+                                            <th class="text-right">Total Facturado Neto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reports-summary-table-body">
+                                        <!-- JS dinámico -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Auditoría de Cajas -->
+                        <div id="reports-cajas" class="subtab-panel hidden">
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="catalog-table" style="font-size: 0.85rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Turno</th>
+                                            <th>Apertura</th>
+                                            <th>Cierre</th>
+                                            <th>Cajero</th>
+                                            <th class="text-right">Monto Apertura</th>
+                                            <th class="text-right">Ventas</th>
+                                            <th class="text-right">Ingresos</th>
+                                            <th class="text-right">Retiros</th>
+                                            <th class="text-right">Cierre Calc.</th>
+                                            <th class="text-right">Cierre Decl.</th>
+                                            <th class="text-right">Discrepancia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reports-cajas-table-body">
+                                        <!-- JS dinámico -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Panel 3: Ranking de Productos -->
+                        <div id="reports-ranking" class="subtab-panel hidden">
+                            <div class="catalog-header-actions" style="margin-bottom: 1rem; justify-content: flex-end; align-items: center; gap: 0.5rem;">
+                                <label for="reports-ranking-order" style="font-size: 0.85rem; color: var(--color-text-muted);">Ordenar por:</label>
+                                <select id="reports-ranking-order" class="form-input" style="padding: 0.35rem 0.5rem; border-radius: 6px; font-size: 0.85rem; max-width: 200px;">
+                                    <option value="cantidad">Cantidad Vendida</option>
+                                    <option value="monto">Monto Facturado</option>
+                                </select>
+                            </div>
+                            <div class="table-responsive catalog-table-wrapper">
+                                <table class="catalog-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center" style="width: 80px;">Posición</th>
+                                            <th>Código Barra</th>
+                                            <th>Producto</th>
+                                            <th class="text-right">Cantidad Vendida</th>
+                                            <th class="text-right">Total Facturado Neto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reports-ranking-table-body">
+                                        <!-- JS dinámico -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -889,6 +1130,155 @@
         </div>
     </div>
 
+    <!-- MODAL 13: DETALLE DE VENTA -->
+    <div id="modal-sale-details" class="modal-backdrop hidden">
+        <div class="modal-card modal-lg animate-scale" style="max-width: 800px;">
+            <div class="modal-header">
+                <h2>Detalle de Venta</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1rem 1.5rem; color: var(--color-text-primary);">
+                <!-- Detalles consolidados de la venta -->
+                <div class="sale-meta-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background-color: var(--color-bg-card); border-radius: 8px; border: 1px solid var(--color-border);">
+                    <div>
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block;">ID Venta</span>
+                        <strong id="detail-sale-id" style="font-size: 0.85rem; word-break: break-all;">-</strong>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block;">Fecha y Hora</span>
+                        <span id="detail-sale-date" style="font-weight: 500; font-size: 0.85rem;">-</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block;">Caja y Cajero</span>
+                        <span id="detail-sale-user" style="font-weight: 500; font-size: 0.85rem;">-</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block;">Pago / Vuelto</span>
+                        <span id="detail-sale-payment" style="font-weight: 500; font-size: 0.85rem;">-</span>
+                    </div>
+                    <div>
+                        <span style="font-size: 0.8rem; color: var(--color-text-muted); display: block;">Estado</span>
+                        <span id="detail-sale-status" class="badge-status">-</span>
+                    </div>
+                </div>
+
+                <!-- Tabla de productos vendidos -->
+                <h3 style="font-size: 1rem; margin-bottom: 0.5rem; font-weight: 600;">Productos Vendidos</h3>
+                <div class="table-responsive" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 1.5rem;">
+                    <table class="catalog-table" style="margin: 0; border: none;">
+                        <thead>
+                            <tr style="background-color: var(--color-bg-hover);">
+                                <th>Producto</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Descuento</th>
+                                <th class="text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detail-sale-items-body">
+                            <!-- JS dinámico -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 1.5rem;">
+                    <div style="text-align: right; background-color: var(--color-bg-hover); padding: 0.75rem 1.5rem; border-radius: 8px; border: 1px solid var(--color-border);">
+                        <span style="font-size: 0.85rem; color: var(--color-text-muted); margin-right: 1rem;">TOTAL FACTURADO:</span>
+                        <strong id="detail-sale-total" style="font-size: 1.25rem; color: var(--color-text-primary); font-weight: 700;">$0.00</strong>
+                    </div>
+                </div>
+
+                <!-- Sección para Anulaciones / Devoluciones -->
+                <div id="sale-actions-section" class="sale-actions-box" style="padding-top: 1rem; border-top: 1px solid var(--color-border);">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label for="sale-action-reason" style="font-weight: 600; display: block; margin-bottom: 0.5rem;">Motivo de la Operación (*)</label>
+                        <textarea id="sale-action-reason" class="form-input" style="width: 100%; min-height: 60px; resize: vertical;" placeholder="Ej. Error de carga, producto dañado, devolución voluntaria..."></textarea>
+                    </div>
+                    <div id="sale-action-error" class="alert alert-error hidden" style="margin-bottom: 1rem;"></div>
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button type="button" class="btn btn-danger" id="btn-annul-sale">
+                            Anular Venta (Mismo Día)
+                        </button>
+                        <button type="button" class="btn btn-warning" id="btn-refund-sale">
+                            Devolución Total
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 14: AJUSTE DE STOCK -->
+    <div id="modal-stock-ajuste" class="modal-backdrop hidden">
+        <div class="modal-card modal-md animate-scale">
+            <div class="modal-header">
+                <h2>Registrar Ajuste de Stock</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-stock-ajuste" class="modal-form">
+                <div class="form-group">
+                    <label for="ajuste-producto-id">Producto (*)</label>
+                    <select id="ajuste-producto-id" required class="form-input">
+                        <!-- Carga dinámica -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ajuste-cantidad-delta">Cantidad Delta (*)</label>
+                    <input type="number" id="ajuste-cantidad-delta" required class="form-input" placeholder="Ej. 10 para sumar, -5 para restar">
+                    <span style="font-size: 0.75rem; color: var(--color-text-muted); display: block; margin-top: 0.25rem;">
+                        Use valores positivos para sumar stock (ej. sobrante) o negativos para restar (ej. rotura/pérdida).
+                    </span>
+                </div>
+                <div class="form-group">
+                    <label for="ajuste-motivo">Motivo del Ajuste (*)</label>
+                    <input type="text" id="ajuste-motivo" required class="form-input" placeholder="Ej. Rotura de botella, vencimiento, auditoría...">
+                </div>
+                <div id="ajuste-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Ajuste</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 15: INGRESO DE MERCADERÍA -->
+    <div id="modal-stock-ingreso" class="modal-backdrop hidden">
+        <div class="modal-card modal-md animate-scale">
+            <div class="modal-header">
+                <h2>Ingreso de Mercadería (Proveedor)</h2>
+                <button class="modal-close btn-icon">&times;</button>
+            </div>
+            <form id="form-stock-ingreso" class="modal-form">
+                <div class="form-group">
+                    <label for="ingreso-producto-id">Producto (*)</label>
+                    <select id="ingreso-producto-id" required class="form-input">
+                        <!-- Carga dinámica -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ingreso-proveedor-id">Proveedor (*)</label>
+                    <select id="ingreso-proveedor-id" required class="form-input">
+                        <!-- Carga dinámica -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="ingreso-cantidad">Cantidad (*)</label>
+                    <input type="number" id="ingreso-cantidad" min="1" required class="form-input" placeholder="Ej. 24">
+                </div>
+                <div class="form-group">
+                    <label for="ingreso-motivo">Motivo / Factura / Remito (*)</label>
+                    <input type="text" id="ingreso-motivo" required class="form-input" placeholder="Ej. Compra remito Nro 1234">
+                </div>
+                <div id="ingreso-error" class="alert alert-error hidden"></div>
+                <div class="modal-actions mt-4">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Ingreso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- TOAST NOTIFICATIONS CONTAINER -->
 
     <div id="toast-container" class="toast-container"></div>
@@ -896,6 +1286,6 @@
     <!-- AUDIO ELEMENT FOR ERROR/WARNING -->
     <!-- Se generará sintéticamente vía Web Audio API en app.js para ser offline-friendly -->
 
-    <script src="/static/js/app.js"></script>
+    <script src="/static/js/app.js?v=1.0.3"></script>
 </body>
 </html>
